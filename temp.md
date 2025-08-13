@@ -5,6 +5,7 @@
 ```bash
 conda create -n qhflow python=3.12 psi4
 conda activate qhflow
+pip install pyscf
 pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index https://download.pytorch.org/whl/cu118
 pip install torch_geometric==2.3.0
 pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu118.html
