@@ -4,7 +4,6 @@
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
     echo "Usage: $0 <start> <end> [root]"
     echo "Example: $0 0 14 /home/gimseongsu/shared/QHFlow/dataset"
-    exit 1
 fi
 
 start=$1
@@ -26,7 +25,6 @@ fi
 # Validate that start <= end
 if [ $start -gt $end ]; then
     echo "Error: start ($start) must be less than or equal to end ($end)"
-    exit 1
 fi
 
 echo "Processing chunks from $start to $end"
@@ -56,7 +54,6 @@ for i in $(seq $start $end); do
         echo "Successfully completed chunk $i in ${chunk_duration} seconds"
     else
         echo "Failed on chunk $i"
-        exit 1
     fi
 done
 
