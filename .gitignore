@@ -15,3 +15,5 @@ outputs/
 checkpoints/
 wandb/
 multirun/
+
+src/timer.dat
