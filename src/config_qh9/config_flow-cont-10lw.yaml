@@ -1,0 +1,63 @@
+hydra:
+  run:
+    dir: outputs/v3_cont-${dataset.dataset_full_name}/${wandb.run_name}
+
+
+defaults:
+  - model: QHNet_flow
+  - dataset: QH9Stable
+device: 0
+ckpt_dir: 'checkpoints'
+split_seed: 42
+check_val_every_n_epoch: 1
+
+optimizer: adamW
+decay_factor: 0.5
+decay_patience: 5
+# ema_start_epoch: 40  # 40 for water, and 0 for others
+ema_start_epoch: -1
+warmup_step: 1000
+num_training_steps: ${dataset.total_steps}
+end_lr: 1e-7
+scheduler_power: 3.5
+
+qh9: True
+pl_type: flow_qh9
+
+data_type: float32
+
+loss_weights: {"hamiltonian": 10.0,}
+use_init_hamiltonian: True
+use_init_hamiltonian_residue: True
+use_mse_and_mae: True
+
+prefix: ""
+mode: train
+
+wandb:
+  mode: disabled
+  project: "DFT-hamiltonian_qh9"
+  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}-US_${model.use_block_S}
+  run_id: Null
+  tags: ["qh9","flow", "cont", "v3"]
+  # resume: must
+
+# resume  
+continune_ckpt: Null
+# inference
+model_ckpt: ''
+partial_val: 0.25
+seed: 0
+
+flow:
+  batch_mul : 1
+  use_t_scale: False
+  init_gauss: True
+  init_gauss_center: False
+  use_mse_and_mae: ${use_mse_and_mae}
+  use_res_target: True
+  error_threshold: 1e-3
+  sigma: 0.1
+  num_ode_steps: 3
+  num_ode_steps_val: 3
+  init_p0_type: "expand"

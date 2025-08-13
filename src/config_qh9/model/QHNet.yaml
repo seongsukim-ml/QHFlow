@@ -1,0 +1,6 @@
+model_name: QHNet
+version: Real_QHNet_qh9
+# version: QHNet_wo_bias, QHNet_w_bias, QHNet
+
+hidden_size: 128
+bottle_hidden_size: 32

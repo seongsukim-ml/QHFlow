@@ -1,0 +1,48 @@
+hydra:
+  run:
+    dir: outputs/v3_cont-${dataset.dataset_full_name}/${wandb.run_name}
+
+
+defaults:
+  - model: QHNet
+  - dataset: QH9Stable
+device: 0
+ckpt_dir: 'checkpoints'
+split_seed: 42
+check_val_every_n_epoch: 1
+
+optimizer: adamW
+decay_factor: 0.5
+decay_patience: 5
+# ema_start_epoch: 40  # 40 for water, and 0 for others
+ema_start_epoch: -1
+warmup_step: 1000
+num_training_steps: ${dataset.total_steps}
+end_lr: 1e-7
+scheduler_power: 3.5
+
+use_init_hamiltonian_residue: False
+
+qh9: True
+seed: 0
+
+data_type: float32
+
+loss_weights: {"hamiltonian": 1.0,}
+
+prefix: ""
+mode: train
+
+
+wandb:
+  mode: disabled
+  project: "DFT-hamiltonian_qh9"
+  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}
+  run_id: Null
+  tags: ["qh9", "base", "cont", "v3"]
+  # resume: must
+
+# resume  
+continune_ckpt: ''
+# inference
+model_ckpt: ''

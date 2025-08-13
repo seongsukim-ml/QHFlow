@@ -1,0 +1,62 @@
+hydra:
+  run:
+    dir: outputs/cont-${dataset.dataset_name}/${wandb.run_name}
+
+
+defaults:
+  - model: QHNet_flow
+  - dataset: water
+device: 0
+ckpt_dir: 'checkpoints'
+split_seed: 42
+check_val_every_n_epoch: 10
+
+optimizer: adamW
+decay_factor: 0.5
+decay_patience: 5
+ema_start_epoch: -1  # 40 for water, and 0 for others
+warmup_step: 0
+num_training_steps: 100000
+dataset:
+  learning_rate: 1e-5
+end_lr: 5e-10
+
+scheduler_power: 3.5
+
+data_type: float64
+
+# loss_weights: {'hamiltonian': 10.0,  "few_steps":10.0}
+loss_weights: {'hamiltonian': 10.0, "waloss": 10.0}
+# use_init_hamiltonian: True
+use_init_hamiltonian_residue: True
+use_mse_and_mae: True
+
+prefix: ""
+
+wandb:
+  mode: disabled
+  project: "DFT-hamiltonian_V2_finetune"
+  run_name: FT_${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
+  run_id: ''
+  # tags: []
+  tags: ["init_ham_fixed", "Flow", "finetune"]
+  # resume: must
+
+# resume  
+continune_ckpt: Null
+original_ckpt: Null
+# inference
+model_ckpt: ''
+
+pl_type: 'flow_finetune'
+
+flow:
+  batch_mul : 1
+  use_t_scale: False
+  num_ode_steps_val: 20
+  init_gauss: True
+  init_gauss_center: False
+  use_mse_and_mae: ${use_mse_and_mae}
+  use_res_target: True
+  error_threshold: 1e-3
+  init_p0_type: "expand"

@@ -1,0 +1,42 @@
+hydra:
+  run:
+    dir: outputs/cont-${dataset.dataset_name}/${wandb.run_name}
+
+
+defaults:
+  - model: QHNet
+  - dataset: water
+device: 0
+ckpt_dir: 'checkpoints'
+split_seed: 42
+check_val_every_n_epoch: 10
+
+optimizer: adamW
+decay_factor: 0.5
+decay_patience: 5
+ema_start_epoch: 40  # 40 for water, and 0 for others
+warmup_step: 1000
+num_training_steps: 200000
+end_lr: 1e-9
+scheduler_power: 3.5
+
+data_type: float64
+
+loss_weights: {'hamiltonian': 1.0}
+use_init_hamiltonian: True
+use_init_hamiltonian_residue: False
+
+prefix: ""
+
+wandb:
+  mode: disabled
+  project: "DFT-hamiltonian_V2"
+  run_name: ${model.version}${prefix}-${dataset.dataset_name}-UH_${use_init_hamiltonian}-UR_${use_init_hamiltonian_residue}
+  run_id: ''
+  tags: ["init_ham_fixed"]
+  # resume: must
+
+# resume  
+continune_ckpt: ''
+# inference
+model_ckpt: ''
