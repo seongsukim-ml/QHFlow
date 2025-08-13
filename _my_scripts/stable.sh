@@ -6,11 +6,11 @@ cd ~/25DFT/QHFlow/src
 
 start_time=$(date +%s)
 
-for i in {0..14}; do
+for i in {1..14}; do
     chunk_start=$(date +%s)
     echo "Starting chunk $i at $(date)"
     
-    python -m dataset_module.qh9_datasets_split --name=QH9Dynamic --num_chunks=30 --chunk_idx=$i --split=mol
+    python -m dataset_module.qh9_datasets_split --name=QH9Stable --num_chunks=30 --chunk_idx=$i
     
     if [ $? -eq 0 ]; then
         chunk_end=$(date +%s)
