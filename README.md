@@ -103,5 +103,15 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 
 (Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine.)
 
+## Citation
+```
+@article{kim2025high,
+  title={High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction},
+  author={Kim, Seongsu and Kim, Nayoung and Kim, Dongwoo and Ahn, Sungsoo},
+  journal={arXiv preprint arXiv:2505.18817},
+  year={2025}
+}
+```
+
 ## Acknowledgements
 This project is based on the repo [AIRS](https://github.com/divelab/AIRS.git).

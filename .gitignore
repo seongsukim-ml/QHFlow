@@ -22,5 +22,3 @@ multirun/
 src/timer.dat
 /ckpts/*
 !/ckpts/README.md
-
-/src/timer.dat
