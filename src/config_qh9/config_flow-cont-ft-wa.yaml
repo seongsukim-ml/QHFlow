@@ -4,7 +4,7 @@ hydra:
 
 
 defaults:
-  - model: QHNet_flow
+  - model: QHFlow
   - dataset: QH9Stable
 device: 0
 ckpt_dir: 'checkpoints'

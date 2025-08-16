@@ -1,5 +1,5 @@
-model_name: QHNet_flow
-version: QHNet_flow_qh9
+model_name: QHFlow
+version: QHFlow_qh9
 # version: QHNet_wo_bias, QHNet_w_bias, QHNet
 
 hidden_size: 128

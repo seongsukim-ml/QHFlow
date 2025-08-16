@@ -1,5 +1,5 @@
-from .QHNet_flow import QHNet_flow
-from .QHNet_flow_qh9 import QHNet_flow as QHNet_flow_qh9
+from .QHFlow import QHFlow
+from .QHFlow_qh9 import QHFlow as QHFlow_qh9
 from .Real_QHNet import QHNet as Real_QHNet
 from .Real_QHNet_qh9 import QHNet as Real_QHNet_qh9
 
@@ -30,8 +30,8 @@ def get_model(args):
     model_dict ={
         "Real_QHNet".lower():Real_QHNet,
         "Real_QHNet_qh9".lower():Real_QHNet_qh9,
-        "QHNet_flow".lower():QHNet_flow,
-        "QHNet_flow_qh9".lower():QHNet_flow_qh9
+        "QHFlow".lower():QHFlow,
+        "QHFlow_qh9".lower():QHFlow_qh9
     }
     
     model_name = args.version.lower()
@@ -59,54 +59,43 @@ def get_pl_model(conf):
     pl_type = conf.get("pl_type", None)
     cur_mode = conf.get("mode", None)
     
+    # Define inference modes
     inference_modes = ["inference", "inf", "predict", "predict-mul"]
+    is_inference_mode = cur_mode in inference_modes
     
+    # If pl_type is specified, use it directly
     if pl_type is not None:
         pl_type = pl_type.lower()
-        
-    if pl_type == "flow_inf_scf":
-        return LitModel_flow_inf_scf
+        return _get_model_by_pl_type(pl_type, is_inference_mode)
+    
+    # Fallback to version-based selection
+    return _get_model_by_version(version, is_inference_mode)
 
-    if pl_type == "flow_inf":
-        return LitModel_flow_inf
-    
-    # QHNet or Else
-    if pl_type == "base":
-        if cur_mode in inference_modes:
-            return LitModel_inf
-        return LitModel
 
-    # MD17
-    if pl_type == "flow":
-        if cur_mode in inference_modes:
-            return LitModel_flow_inf
-        return LitModel_flow
+def _get_model_by_pl_type(pl_type, is_inference_mode):
+    """Get model class based on pl_type and inference mode."""
     
-    if pl_type == "flow_finetune":
-        if cur_mode in inference_modes:
-            return LitModel_flow_inf
-        return LitModel_flow_finetune
+    # Define model mappings
+    model_mappings = {
+        "flow_inf_scf": LitModel_flow_inf_scf,
+        "flow_inf": LitModel_flow_inf,
+        "base": LitModel_inf if is_inference_mode else LitModel,
+        "flow": LitModel_flow_inf if is_inference_mode else LitModel_flow,
+        "flow_finetune": LitModel_flow_inf if is_inference_mode else LitModel_flow_finetune,
+        "flow_qh9": LitModel_flow_qh9_inf if is_inference_mode else LitModel_flow_qh9,
+        "flow_qh9_finetune": LitModel_flow_qh9_inf if is_inference_mode else LitModel_flow_qh9_finetune,
+    }
     
-    # QH9
-    if pl_type == "flow_qh9":
-        if cur_mode in inference_modes:
-            return LitModel_flow_qh9_inf
-        return LitModel_flow_qh9
+    if pl_type in model_mappings:
+        return model_mappings[pl_type]
     
-    if pl_type == "flow_qh9_finetune":
-        if cur_mode in inference_modes:
-            return LitModel_flow_qh9_inf
-        return LitModel_flow_qh9_finetune
+    raise NotImplementedError(f"The pl_type '{pl_type}' is not implemented.")
 
-    if pl_type is not None:
-        raise NotImplementedError(f"the pl_type {pl_type} is not implemented.")
+
+def _get_model_by_version(version, is_inference_mode):
+    """Get model class based on version and inference mode."""
     
-    # Not setting pl_type is not none
     if "flow" in version:
-        if cur_mode in inference_modes:
-            return LitModel_flow_inf
-        return LitModel_flow
+        return LitModel_flow_inf if is_inference_mode else LitModel_flow
     
-    if cur_mode in inference_modes:
-        return LitModel_inf
-    return LitModel
+    return LitModel_inf if is_inference_mode else LitModel

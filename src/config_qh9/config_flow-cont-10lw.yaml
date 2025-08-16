@@ -1,10 +1,10 @@
 hydra:
   run:
-    dir: outputs/v3_cont-${dataset.dataset_full_name}/${wandb.run_name}
+    dir: outputs/${dataset.dataset_full_name}/${wandb.run_name}
 
 
 defaults:
-  - model: QHNet_flow
+  - model: QHFlow
   - dataset: QH9Stable
 device: 0
 ckpt_dir: 'checkpoints'
