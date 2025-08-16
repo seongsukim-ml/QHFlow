@@ -815,8 +815,8 @@ class LitModel_flow(LitModel):
     ):
         try:
             sample, traj, pred = self.sample(batch_one, num_timesteps=num_timesteps)
-            error_dicts = self.test_criterion_qh9_fixed(sample, batch_one)
             if log:
+                error_dicts = self.test_criterion_qh9_fixed(sample, batch_one)
                 for key in error_dicts.keys():
                     self.log(
                         f"{prefix}/{key}{post_fix}",

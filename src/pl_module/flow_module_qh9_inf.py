@@ -1,3 +1,4 @@
+from re import S
 import torch
 
 # import pytorch_lightning as pl
@@ -175,16 +176,15 @@ class LitModel_flow(LitModel_flow_qh9):
             if self.qh9:
                 assert self.test_batch_size == 1
                 # fmt: off
-                self._log_sample_error_test(batch_one, "pred", num_timesteps=1, post_fix="_1")
-                self._log_sample_error_test(batch_one, "pred", num_timesteps=2, post_fix="_2")
-                traj, sample =  self._log_sample_error_test(batch_one, "pred", num_timesteps=self.num_ode_steps_inf, save_pred=True)
-                # if self.save_pred:
-                torch.save(sample, self.output_dir /"sample" / f"pred_{batch_idx}.pt")
+                # For debugging
+                # self._log_sample_error_test(batch_one, "pred", num_timesteps=1, post_fix="_1")
+                # self._log_sample_error_test(batch_one, "pred", num_timesteps=2, post_fix="_2")
+                traj, sample =  self._log_sample_error_test(batch_one, "pred", num_timesteps=self.num_ode_steps_inf, save_pred=self.save_pred, log=False)
+                if self.save_pred:
+                    torch.save(sample, self.output_dir /"sample" / f"pred_{batch_idx}.pt")
                 # fmt: on
             else:
                 # fmt: off
-                # self._log_sample_error(batch_one, "test", num_timesteps=1, post_fix="_1")
-                # self._log_sample_error(batch_one, "test", num_timesteps=2, post_fix="_2")
                 self._log_sample_error(batch_one, "pred", num_timesteps=self.num_ode_steps_inf)
                 # fmt: on
 
