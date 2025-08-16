@@ -28,6 +28,7 @@ use_init_hamiltonian_residue: True
 use_mse_and_mae: True
 
 prefix: ""
+mode: train
 
 wandb:
   mode: disabled
