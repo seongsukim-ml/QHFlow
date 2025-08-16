@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: outputs/cont-${dataset.dataset_name}/${wandb.run_name}
+    dir: outputs/${dataset.dataset_name}/${wandb.run_name}
 
 
 defaults:
@@ -33,10 +33,11 @@ mode: train
 wandb:
   mode: disabled
   project: "DFT-hamiltonian_V2"
-  run_name: ${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
+  # run_name: ${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
+  run_name: ${model.version}${prefix}-${dataset.dataset_name}
   run_id: ''
   # tags: []
-  tags: ["init_ham_fixed", "Flow"]
+  tags: []
   # resume: must
 
 # resume  

@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: outputs/cont-${dataset.dataset_name}/${wandb.run_name}
+    dir: outputs/${dataset.dataset_name}/${wandb.run_name}
 
 
 defaults:
@@ -36,10 +36,11 @@ prefix: ""
 wandb:
   mode: disabled
   project: "DFT-hamiltonian_V2_finetune"
-  run_name: FT_${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
+  # run_name: FT_${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
+  run_name: FT_${model.version}${prefix}-${dataset.dataset_name}
   run_id: ''
   # tags: []
-  tags: ["init_ham_fixed", "Flow", "finetune"]
+  tags: ["finetune"]
   # resume: must
 
 # resume  
