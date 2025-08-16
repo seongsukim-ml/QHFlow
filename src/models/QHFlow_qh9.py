@@ -37,7 +37,7 @@ def get_time_embedding(timesteps, embedding_dim, max_positions=2000):
     return emb
 
 
-class QHNet_flow(nn.Module):
+class QHFlow(nn.Module):
     def __init__(
         self,
         in_node_features=1,
@@ -52,7 +52,7 @@ class QHNet_flow(nn.Module):
         use_block_H=False,
         **deq_kwargs,
     ):
-        super(QHNet_flow, self).__init__()
+        super(QHFlow, self).__init__()
         self.order = sh_lmax
 
         self.sh_irrep = o3.Irreps.spherical_harmonics(lmax=self.order)
