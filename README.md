@@ -37,6 +37,7 @@ pip install -r requirements.txt
 ├── dataset/                   # Data root (auto or manual download)
 ├── _my_scripts/               # Helper scripts for dataset processing 
 ├── requirements.txt
+├── ckpts                      # Pretrained/finetuned checkpoints files
 ├── README.md
 └── auxiliary.gbs
 ```
@@ -65,43 +66,135 @@ python -m dataset_module.qh9_datasets_split \
 where NAME is the dataset name (`QH9Stable` / `QH9Dynamic`). Use the following SPLIT options:
 - `QH9Stable`: `random`, `size_ood`
 - `QH9Dynamic`: `geometry`, `mol`
+
 Data is assembled automatically when the final chunk is processed.
+
+**Note:** We plan to provide pre-processed datasets for all datasets to facilitate easier setup and usage.
+
+## Saved Checkpoints
+
+We plan to provide pre-trained model checkpoints for all datasets. Currently, we can provide checkpoints upon request. The checkpoint files are organized as follows:
+
+**MD17 Dataset:**
+```bash
+ckpts/md17/${DATASET}/checkpoints/weights.ckpt
+# continune_ckpt=../ckpts/md17/water/checkpoints/weights.ckpt           # Example
+```
+
+**QH9 Dataset:**
+```bash
+ckpts/${DATASET}/${SPLIT}/checkpoints/weights.ckpt       # Pretrained
+ckpts/${DATASET}/${SPLIT}-FT/checkpoints/weights.ckpt    # Finetuned
+
+# continune_ckpt=${ROOT}$/ckpts/QH9Stable/random/checkpoints/weights.ckpt     # Example (Pretrained)
+# continune_ckpt=${ROOT}$/ckpts/QH9Stable/random-FT/checkpoints/weights.ckpt  # Example (Finetuned)
+```
+
+Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset and split names:
+- **MD17 DATASET**: `ethanol`, `malondialdehyde`, `uracil`, `water`
+- **QH9 DATASET**: `QH9Stable`, `QH9Dynamic`
+  - **QH9Stable SPLIT**: `random`, `size_ood`
+  - **QH9Dynamic SPLIT**: `geometry`, `mol`
+
+To use these checkpoints, specify the path in the `continune_ckpt` parameter when running inference or prediction commands.
+
+**Note:** `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
 
 ## Usage
 
-### Train
+### Prerequisites
+All commands should be run from the `QHFlow/src` directory.
+
+**Setup:**
 ```bash
-python -m experiment.train_md17 dataset=${DATASET}
-python -m experiment.train_qh9  dataset=${DATASET} dataset.split=${SPLIT}
+cd QHFlow/src
 ```
 
+### Available Datasets:
 - **MD17 DATASET**: `ethanol`, `malondialdehyde`, `uracil`, `water`
 - **QH9 DATASET**: `QH9Stable`, `QH9Dynamic`
   - **QH9Stable SPLIT (dataset.split)**: `random`, `size_ood`
   - **QH9Dynamic SPLIT (dataset.split)**: `geometry`, `mol`
 
+**Tips:** 
+- You can enable Weights & Biases logging with `wandb.mode=online`
+- Training automatically resumes when interrupted
+- Use `CUDA_VISIBLE_DEVICES` to specify GPU devices: `CUDA_VISIBLE_DEVICES=0,1 python -m experiment.train_md17 dataset=water`
+
+### Train
+
+```bash
+python -m experiment.train_md17 dataset=${DATASET}
+python -m experiment.train_qh9  dataset=${DATASET} dataset.split=${SPLIT}
+```
+
+**Examples:**
+
+```bash
+# Train MD17 model
+python -m experiment.train_md17 dataset=water
+
+# Train QH9 model
+python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random
+```
+
 ### Finetune
 ```bash
-python -m experiment.train_qh9-finetune  dataset=${DATASET} dataset.split=${SPLIT} +original_ckpt=${PRETRAINED_CKPT}
+python -m experiment.train_qh9-finetune dataset=${DATASET} dataset.split=${SPLIT} +original_ckpt=${PRETRAINED_CKPT}
 ```
 
-### SCF acceleration measure
+**Example:**
+```bash
+python -m experiment.train_qh9-finetune dataset=QH9Stable dataset.split=random +original_ckpt=../ckpts/QH9Stable/random/checkpoints/weights.ckpt
+```
+
+### Inference (SCF acceleration measure)
 ```bash
 python -m experiment.train_md17 mode=inference dataset=${DATASET} continune_ckpt=${CKPT}
-python -m experiment.train_qh9  mode=inference dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
+python -m experiment.train_qh9 mode=inference dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
 ```
 
-### Prediction (saving the output)
+**Examples:**
+```bash
+# MD17 inference
+python -m experiment.train_md17 mode=inference dataset=water continune_ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+
+# QH9 inference
+python -m experiment.train_qh9 mode=inference dataset=QH9Stable dataset.split=random continune_ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+```
+
+### Prediction (Saving the Output)
+
+This mode is used to predict test files and save individual Hamiltonian matrices for each sample. The predictions are saved to disk for further analysis.
+
+**Output Format:**
+- Hamiltonian matrices are saved as individual files
+- Each prediction corresponds to a test sample
+- Files are organized by dataset and model configuration
+
 ```bash
 python -m experiment.train_md17 mode=predict dataset=${DATASET} continune_ckpt=${CKPT}
-python -m experiment.train_qh9  mode=predict dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
+python -m experiment.train_qh9 mode=predict dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
 ```
 
-Tips: You can enable Weights & Biases logging with `wandb.mode=online`. Training automatically resumes when interrupted.
+**Examples:**
+```bash
+# MD17 prediction
+python -m experiment.train_md17 mode=predict dataset=water continune_ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+
+# QH9 prediction
+python -m experiment.train_qh9 mode=predict dataset=QH9Stable dataset.split=random continune_ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+```
+
+**Output Location:**
+- Predictions are typically saved in the `outputs/` directory
+- Each run creates timestamped subdirectories for organization
+
+### Note about Metrics
 
 The validation metrics of physical properties (e.g., orbital energies, Hamiltonian MAE) on QH9 can be unstable since the metric code is designed for batch size 1. Test and inference metrics have no issue since the batch size is fixed to 1. Multi-batch metric implementation is possible, but we use batch size 1 to ensure the bug-free behavior we tested.
 
-(Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine.)
+**Note:** Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine.
 
 ## Citation
 ```
@@ -114,4 +207,8 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 ```
 
 ## Acknowledgements
-This project is based on the repo [AIRS](https://github.com/divelab/AIRS.git).
+This project is based on the repo [AIRS](https://github.com/divelab/AIRS.git) (QHNet).
+
+**MD17 Dataset**: [Revised MD17 dataset (rMD17)](https://figshare.com/articles/dataset/Revised_MD17_dataset_rMD17_/12672038)
+
+**QH9 Dataset**: [QHBench/QH9](https://github.com/divelab/AIRS/tree/main/OpenDFT/QHBench/QH9)
