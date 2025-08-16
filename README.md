@@ -96,19 +96,12 @@ Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset a
   - **QH9Stable SPLIT**: `random`, `size_ood`
   - **QH9Dynamic SPLIT**: `geometry`, `mol`
 
-To use these checkpoints, specify the path in the `continune_ckpt` parameter when running inference or prediction commands.
-
-**Note:** `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
+To use these checkpoints, specify the path in the `continune_ckpt` parameter when running inference or prediction commands. `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
 
 ## Usage
 
 ### Prerequisites
 All commands should be run from the `QHFlow/src` directory.
-
-**Setup:**
-```bash
-cd QHFlow/src
-```
 
 ### Available Datasets:
 - **MD17 DATASET**: `ethanol`, `malondialdehyde`, `uracil`, `water`
@@ -116,10 +109,22 @@ cd QHFlow/src
   - **QH9Stable SPLIT (dataset.split)**: `random`, `size_ood`
   - **QH9Dynamic SPLIT (dataset.split)**: `geometry`, `mol`
 
-**Tips:** 
+### Tips
+
+**Training Tips:**
 - You can enable Weights & Biases logging with `wandb.mode=online`
 - Training automatically resumes when interrupted
 - Use `CUDA_VISIBLE_DEVICES` to specify GPU devices: `CUDA_VISIBLE_DEVICES=0,1 python -m experiment.train_md17 dataset=water`
+
+**Performance Tips:**
+- For faster training, use multiple GPUs with `CUDA_VISIBLE_DEVICES=0,1,2,3`
+- Monitor GPU memory usage and adjust batch size if needed
+- Use mixed precision training for memory efficiency (enabled by default)
+
+**Debugging Tips:**
+- Check logs in the `logs/` directory for detailed training information
+- Use `mode=debug` for additional debugging information
+- Monitor validation metrics to ensure proper training progress
 
 ### Train
 
