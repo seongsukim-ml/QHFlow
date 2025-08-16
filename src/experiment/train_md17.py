@@ -206,8 +206,6 @@ def main(conf):
         )
         warnings.filterwarnings("ignore")
         # Start training
-        import pdb
-        pdb.set_trace()
         if mode == "train":
             trainer.fit(
                 lit_model,
