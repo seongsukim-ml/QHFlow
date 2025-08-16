@@ -50,10 +50,12 @@ class QHFlow(nn.Module):
         radius_embed_dim=32,  # maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         use_block_S=False,
         use_block_H=False,
+        dataset_type="qh9",  # "qh9" (default) or "md17"
         **deq_kwargs,
     ):
         super(QHFlow, self).__init__()
         self.order = sh_lmax
+        self.dataset_type = dataset_type
 
         self.sh_irrep = o3.Irreps.spherical_harmonics(lmax=self.order)
         self.hs = hidden_size
@@ -378,11 +380,29 @@ class QHFlow(nn.Module):
         node_attr_R = self.sigma_embedding(node_attr_R)
 
         edge_dst, edge_src = data.edge_index
-        node_feats_H = self.onebody_reduction(data, H, keep_blocks)
-        if self.use_block_H:
-            node_feats_H_init = self.onebody_reduction(data, data.init_ham, keep_blocks)
-        if self.use_block_S:
-            node_feats_S = self.onebody_reduction(data, data.overlap, keep_blocks)
+        
+        # Handle different dataset types
+        if self.dataset_type == "md17" and keep_blocks:
+            node_feats_H = self.onebody_reduction(data, (H, None), keep_blocks)
+            if self.use_block_H:
+                node_feats_H_init = self.onebody_reduction(
+                    data,
+                    (data.diagonal_init_ham, data.non_diagonal_init_ham),
+                    keep_blocks,
+                )
+            if self.use_block_S:
+                node_feats_S = self.onebody_reduction(
+                    data,
+                    (data.diagonal_overlap, data.non_diagonal_overlap),
+                    keep_blocks,
+                )
+        else:
+            node_feats_H = self.onebody_reduction(data, H, keep_blocks)
+            if self.use_block_H:
+                node_feats_H_init = self.onebody_reduction(data, data.init_ham, keep_blocks)
+            if self.use_block_S:
+                node_feats_S = self.onebody_reduction(data, data.overlap, keep_blocks)
+        
         node_attr_R_init = node_attr_R
         # node_attr_R_init = data.node_attr
 
@@ -429,11 +449,18 @@ class QHFlow(nn.Module):
                 )
                 node_concat.append(node_feats_S)
 
-            node_concat = (
-                torch.cat(node_concat, dim=-1)
-                .index_select(-1, self.hidden_irrep_concat_idx.to(node_attr_R.device))
-                .contiguous()
-            )
+            # Handle different concatenation styles
+            if self.dataset_type == "md17":
+                node_concat = torch.cat(node_concat, dim=-1).index_select(
+                    -1, self.hidden_irrep_concat_idx.to(node_attr_R.device)
+                )
+            else:
+                node_concat = (
+                    torch.cat(node_concat, dim=-1)
+                    .index_select(-1, self.hidden_irrep_concat_idx.to(node_attr_R.device))
+                    .contiguous()
+                )
+            
             node_attr_R = self.blocks_Linear[layer_idx](node_concat)
             node_attr_R = self.norm(node_attr_R, batch=data.batch)
 
@@ -469,7 +496,12 @@ class QHFlow(nn.Module):
                 -1, -2
             )
 
-            return hamiltonian_matrix
+            if self.dataset_type == "md17":
+                return hamiltonian_matrix
+            else:
+                results = {}
+                results["hamiltonian"] = hamiltonian_matrix
+                return results
         else:
             ret_hamiltonian_diagonal_matrix = (
                 hamiltonian_diagonal_matrix
@@ -483,16 +515,27 @@ class QHFlow(nn.Module):
                     -1, -2
                 )
             )
-            return ret_hamiltonian_diagonal_matrix, ret_hamiltonian_non_diagonal_matrix
+            
+            if self.dataset_type == "md17":
+                return ret_hamiltonian_diagonal_matrix, ret_hamiltonian_non_diagonal_matrix
+            else:
+                results = {}
+                results["hamiltonian_diagonal_blocks"] = ret_hamiltonian_diagonal_matrix
+                results["hamiltonian_non_diagonal_blocks"] = ret_hamiltonian_non_diagonal_matrix
+                return results
 
     def forward(self, data, H, keep_blocks=False):
         data, node_attr, edge_sh, rbf_new, transpose_edge_index = self.injection(data)
-        H_pred = self.filter(
+        result = self.filter(
             H, data, node_attr, edge_sh, rbf_new, transpose_edge_index, keep_blocks
         )
-        results = {}
-        results["hamiltonian"] = H_pred
-        return results
+        
+        if self.dataset_type == "md17":
+            results = {}
+            results["hamiltonian"] = result
+            return results
+        else:
+            return result
 
     def build_graph(self, data, max_radius):
         node_attr = data.atoms.squeeze()
