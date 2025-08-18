@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: outputs/v3_cont-${dataset.dataset_full_name}/${wandb.run_name}
+    dir: outputs/${dataset.dataset_full_name}/${wandb.run_name}
 
 
 defaults:
