@@ -22,6 +22,21 @@ from .modules import *
 
 _RESCALE = True
 
+
+def ensure_irreps(irrep):
+    """
+    Utility function to ensure input is converted to o3.Irreps object.
+    
+    Args:
+        irrep: Either an o3.Irreps object or a string/other representation
+               that can be converted to o3.Irreps
+    
+    Returns:
+        o3.Irreps: The input converted to o3.Irreps object
+    """
+    return irrep if isinstance(irrep, o3.Irreps) else o3.Irreps(irrep)
+
+
 def get_feasible_irrep(irrep_in1, irrep_in2, cutoff_irrep_out, tp_mode="uvu"):
     irrep_mid = []
     instructions = []
@@ -123,22 +138,10 @@ class ConvLayer(torch.nn.Module):
         self.node_attr_dim = node_attr_dim
         self.edge_wise = edge_wise
 
-        self.irrep_in_node = (
-            irrep_in_node
-            if isinstance(irrep_in_node, o3.Irreps)
-            else o3.Irreps(irrep_in_node)
-        )
-        self.irrep_hidden = (
-            irrep_hidden
-            if isinstance(irrep_hidden, o3.Irreps)
-            else o3.Irreps(irrep_hidden)
-        )
-        self.irrep_out = (
-            irrep_out if isinstance(irrep_out, o3.Irreps) else o3.Irreps(irrep_out)
-        )
-        self.sh_irrep = (
-            sh_irrep if isinstance(sh_irrep, o3.Irreps) else o3.Irreps(sh_irrep)
-        )
+        self.irrep_in_node = ensure_irreps(irrep_in_node)
+        self.irrep_hidden = ensure_irreps(irrep_hidden)
+        self.irrep_out = ensure_irreps(irrep_out)
+        self.sh_irrep = ensure_irreps(sh_irrep)
         self.nonlinear_layer = get_nonlinear(nonlinear)
 
         self.irrep_tp_out_node, instruction_node = get_feasible_irrep(
@@ -290,22 +293,10 @@ class ConvNetLayer(torch.nn.Module):
         self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
         self.nonlinear_gates = {1: "ssp", -1: "abs"}
 
-        self.irrep_in_node = (
-            irrep_in_node
-            if isinstance(irrep_in_node, o3.Irreps)
-            else o3.Irreps(irrep_in_node)
-        )
-        self.irrep_hidden = (
-            irrep_hidden
-            if isinstance(irrep_hidden, o3.Irreps)
-            else o3.Irreps(irrep_hidden)
-        )
-        self.irrep_out = (
-            irrep_out if isinstance(irrep_out, o3.Irreps) else o3.Irreps(irrep_out)
-        )
-        self.sh_irrep = (
-            sh_irrep if isinstance(sh_irrep, o3.Irreps) else o3.Irreps(sh_irrep)
-        )
+        self.irrep_in_node = ensure_irreps(irrep_in_node)
+        self.irrep_hidden = ensure_irreps(irrep_hidden)
+        self.irrep_out = ensure_irreps(irrep_out)
+        self.sh_irrep = ensure_irreps(sh_irrep)
 
         self.edge_attr_dim = edge_attr_dim
         self.node_attr_dim = node_attr_dim
@@ -353,22 +344,10 @@ class PairNetLayer(torch.nn.Module):
         self.nonlinear_gates = {1: "ssp", -1: "abs"}
         self.invariant_layers = invariant_layers
         self.invariant_neurons = invariant_neurons
-        self.irrep_in_node = (
-            irrep_in_node
-            if isinstance(irrep_in_node, o3.Irreps)
-            else o3.Irreps(irrep_in_node)
-        )
-        self.irrep_bottle_hidden = (
-            irrep_bottle_hidden
-            if isinstance(irrep_bottle_hidden, o3.Irreps)
-            else o3.Irreps(irrep_bottle_hidden)
-        )
-        self.irrep_out = (
-            irrep_out if isinstance(irrep_out, o3.Irreps) else o3.Irreps(irrep_out)
-        )
-        self.sh_irrep = (
-            sh_irrep if isinstance(sh_irrep, o3.Irreps) else o3.Irreps(sh_irrep)
-        )
+        self.irrep_in_node = ensure_irreps(irrep_in_node)
+        self.irrep_bottle_hidden = ensure_irreps(irrep_bottle_hidden)
+        self.irrep_out = ensure_irreps(irrep_out)
+        self.sh_irrep = ensure_irreps(sh_irrep)
 
         self.edge_attr_dim = edge_attr_dim
         self.node_attr_dim = node_attr_dim
@@ -532,19 +511,9 @@ class SelfNetLayer(torch.nn.Module):
         self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
         self.nonlinear_gates = {1: "ssp", -1: "abs"}
         self.sh_irrep = sh_irrep
-        self.irrep_in_node = (
-            irrep_in_node
-            if isinstance(irrep_in_node, o3.Irreps)
-            else o3.Irreps(irrep_in_node)
-        )
-        self.irrep_bottle_hidden = (
-            irrep_bottle_hidden
-            if isinstance(irrep_bottle_hidden, o3.Irreps)
-            else o3.Irreps(irrep_bottle_hidden)
-        )
-        self.irrep_out = (
-            irrep_out if isinstance(irrep_out, o3.Irreps) else o3.Irreps(irrep_out)
-        )
+        self.irrep_in_node = ensure_irreps(irrep_in_node)
+        self.irrep_bottle_hidden = ensure_irreps(irrep_bottle_hidden)
+        self.irrep_out = ensure_irreps(irrep_out)
 
         self.edge_attr_dim = edge_attr_dim
         self.node_attr_dim = node_attr_dim
