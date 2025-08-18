@@ -22,40 +22,6 @@ from .modules import *
 
 _RESCALE = True
 
-
-def prod(x):
-    """Compute the product of a sequence."""
-    out = 1
-    for a in x:
-        out *= a
-
-    return out
-
-
-def ShiftedSoftPlus(x):
-    return torch.nn.functional.softplus(x) - math.log(2.0)
-
-
-def softplus_inverse(x):
-    if not isinstance(x, torch.Tensor):
-        x = torch.tensor(x)
-
-    return x + torch.log(-torch.expm1(-x))
-
-
-def get_nonlinear(nonlinear: str):
-    if nonlinear.lower() == "ssp":
-        return ShiftedSoftPlus
-    elif nonlinear.lower() == "silu":
-        return F.silu
-    elif nonlinear.lower() == "tanh":
-        return F.tanh
-    elif nonlinear.lower() == "abs":
-        return torch.abs
-    else:
-        raise NotImplementedError
-
-
 def get_feasible_irrep(irrep_in1, irrep_in2, cutoff_irrep_out, tp_mode="uvu"):
     irrep_mid = []
     instructions = []
