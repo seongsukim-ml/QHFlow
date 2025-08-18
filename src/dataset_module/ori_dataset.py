@@ -18,13 +18,6 @@ from pyscf import gto, scf, dft
 
 logger = logging.getLogger()
 
-# Suppress TorchScript type annotation warnings from e3nn and related libraries
-# This is a known issue and doesn't affect functionality
-warnings.filterwarnings(
-    'ignore',
-    message="The TorchScript type system doesn't support instance-level annotations"
-)
-
 
 convention_dict = {
     "pyscf_631G": Namespace(
