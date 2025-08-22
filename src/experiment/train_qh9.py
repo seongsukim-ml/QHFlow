@@ -113,8 +113,8 @@ def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loa
 
 def _run_qh9_evaluation(conf, pl_model_cls, test_dataset, output_dir):
     """Run QH9 evaluation mode."""
+    import torch
     from torch_geometric.loader import DataLoader
-    from common.checkpoint_utils import _find_best_checkpoint
 
     # Find best checkpoint
     ckpt_path = output_dir / conf.wandb.project
