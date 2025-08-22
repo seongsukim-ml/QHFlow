@@ -17,6 +17,10 @@ from common.training_utils import setup_callbacks, setup_logger, setup_trainer, 
 
 # Setup paths and import models
 setup_paths()
+
+import warnings
+warnings.filterwarnings("ignore")
+
 from models import get_model, get_pl_model
 
 logger = logging.getLogger(__name__)
@@ -76,8 +80,6 @@ def main(conf):
 
 def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf, output_dir):
     """Run QH9 training or testing based on mode."""
-    import warnings
-    warnings.filterwarnings("ignore")
     
     if mode == "train":
         trainer.fit(
@@ -111,13 +113,9 @@ def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loa
 
 def _run_qh9_evaluation(conf, pl_model_cls, test_dataset, output_dir):
     """Run QH9 evaluation mode."""
-    import torch
-    import warnings
     from torch_geometric.loader import DataLoader
     from common.checkpoint_utils import _find_best_checkpoint
-    
-    warnings.filterwarnings("ignore")
-    
+
     # Find best checkpoint
     ckpt_path = output_dir / conf.wandb.project
     ckpt_path_list = list(ckpt_path.glob("**/*.ckpt"))

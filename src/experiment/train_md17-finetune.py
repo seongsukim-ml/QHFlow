@@ -16,10 +16,13 @@ from common.finetune_utils import setup_finetune_model, validate_finetune_config
 
 # Setup paths and import models
 setup_paths()
+
+import warnings
+warnings.filterwarnings("ignore")
+
 from models import get_model, get_pl_model
 
 logger = logging.getLogger(__name__)
-
 
 @hydra.main(config_path="../config_md17", config_name="config_flow-lw10-wa")
 def main(conf):
@@ -94,8 +97,6 @@ def main(conf):
 
 def _run_finetune_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf):
     """Run fine-tuning training or testing based on mode."""
-    import warnings
-    warnings.filterwarnings("ignore")
     
     if mode == "train":
         trainer.fit(
@@ -126,8 +127,6 @@ def _run_finetune_training_or_testing(mode, trainer, lit_model, train_loader, va
 def _run_evaluation(conf, pl_model_cls, test_loader, output_dir):
     """Run evaluation mode."""
     import torch
-    import warnings
-    warnings.filterwarnings("ignore")
     
     model_ckpt = conf.model_ckpt
     lit_model = pl_model_cls.load_from_checkpoint(model_ckpt, conf=conf)

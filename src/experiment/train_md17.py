@@ -15,6 +15,10 @@ from common.training_utils import setup_callbacks, setup_logger, setup_trainer, 
 
 # Setup paths and import models
 setup_paths()
+
+import warnings
+warnings.filterwarnings("ignore")
+
 from models import get_model, get_pl_model
 
 logger = logging.getLogger(__name__)
@@ -92,8 +96,6 @@ def main(conf):
 
 def _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf):
     """Run training or testing based on mode."""
-    import warnings
-    warnings.filterwarnings("ignore")
     
     if mode == "train":
         trainer.fit(
@@ -128,8 +130,6 @@ def _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader,
 def _run_evaluation(conf, pl_model_cls, test_loader, output_dir):
     """Run evaluation mode."""
     import torch
-    import warnings
-    warnings.filterwarnings("ignore")
     
     model_ckpt = conf.model_ckpt
     lit_model = pl_model_cls.load_from_checkpoint(model_ckpt, conf=conf)

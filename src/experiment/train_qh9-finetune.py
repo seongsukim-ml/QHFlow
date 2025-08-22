@@ -24,6 +24,10 @@ torch.multiprocessing.set_sharing_strategy("file_system")
 
 # Setup paths and import models
 setup_paths()
+
+import warnings
+warnings.filterwarnings("ignore")
+
 from models import get_model, get_pl_model
 
 logger = logging.getLogger(__name__)
@@ -85,8 +89,6 @@ def main(conf):
 
 def _run_qh9_finetune_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, load_model_ckpt, conf, test_dataset):
     """Run QH9 fine-tuning training or testing based on mode."""
-    import warnings
-    warnings.filterwarnings("ignore")
     
     if mode == "train":
         trainer.fit(
@@ -111,10 +113,7 @@ def _run_qh9_finetune_training_or_testing(mode, trainer, lit_model, train_loader
 def _run_qh9_finetune_evaluation(conf, pl_model_cls, test_dataset, output_dir):
     """Run QH9 fine-tuning evaluation mode."""
     import torch
-    import warnings
     from torch_geometric.loader import DataLoader
-    
-    warnings.filterwarnings("ignore")
     
     # Find best checkpoint
     ckpt_path = output_dir / conf.wandb.project
