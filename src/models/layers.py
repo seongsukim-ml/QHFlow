@@ -1,21 +1,17 @@
-import time
-import collections
-import math
 import torch
-from torch import nn
-from torch.nn import functional as F
-from torch_cluster import radius_graph
-from e3nn import o3
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn import init
 from torch_scatter import scatter
 import torch_geometric
 from torch_geometric.nn import global_mean_pool, global_max_pool
+
+from e3nn import o3
 from e3nn.nn import FullyConnectedNet
 from e3nn.o3 import Linear, TensorProduct
 from e3nn.o3._norm import Norm
 from e3nn.math import normalize2mom, perm
 from e3nn.util.jit import compile_mode
-
-from torch.nn import init
 
 from .modules import *
 

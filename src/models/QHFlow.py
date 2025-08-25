@@ -16,8 +16,8 @@ from e3nn.math import normalize2mom, perm
 from e3nn.util.jit import compile_mode
 from torch.nn import init
 
+from .layers import *
 from .modules import *
-from .QHNet import *
 
 
 def get_time_embedding(timesteps, embedding_dim, max_positions=2000):
