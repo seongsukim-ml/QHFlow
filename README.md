@@ -2,23 +2,22 @@
 
 By Seongsu Kim, Aug, 2025 [[arxiv]](https://arxiv.org/abs/2505.18817) [[PDF]](https://arxiv.org/pdf/2505.18817)
 
-🌟 This repository contains an implementation of the QHFlow for DFT Hamiltonian prediction.
+🌟 This repository contains an implementation of the QHFlow for DFT Hamiltonian prediction. This repository is still updating.
 
 ## Packages and Requirements
 
-All codes are run with python 3.12 and CUDA 11.8. A similar environment should also work, as this project does not rely on some rapidly changing packages.
+All codes are run with python 3.12 and CUDA 12.1. A similar environment should also work, as this project does not rely on some rapidly changing packages.
 
 ```bash
-# Example CUDA 11.8 with torch 2.4.1
+# Example CUDA 12.1 with torch 2.4.1
 conda create -n qhflow python=3.12 psi4 -y
 conda activate qhflow
 
 pip install pyscf
-pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index https://download.pytorch.org/whl/cu118
+pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index https://download.pytorch.org/whl/cu121
 pip install torch_geometric==2.3.0
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu118.html
+pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
 
-pip install pytorch-lightning==1.8.5 hydra-core
 pip install -r requirements.txt
 ```
 

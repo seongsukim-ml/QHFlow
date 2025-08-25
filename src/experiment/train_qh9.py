@@ -22,6 +22,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from models import get_model, get_pl_model
+from pytorch_lightning.utilities.model_summary import ModelSummary
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ def main(conf):
     pl_model_cls = get_pl_model(conf)
     logger.info(f"Using model: {pl_model_cls}")
     lit_model = pl_model_cls(conf)
+
+    print(ModelSummary(lit_model, max_depth=2)) # max_depth 2 is enough, 3 is for debugging
 
     # Get and validate mode
     mode = get_mode(conf)
