@@ -1,15 +1,12 @@
 from .QHFlow import QHFlow
-from .QHFlow_qh9 import QHFlow as QHFlow_qh9
 from .Real_QHNet import QHNet as Real_QHNet
 from .Real_QHNet_qh9 import QHNet as Real_QHNet_qh9
+from .QHNet_flow_v5 import QHNet_flow as QHNet_flow_v5
 
 import logging
 logger = logging.getLogger(__name__)
 
 __all__ = ["get_model"]
-
-# version: wo bias and with bias model are used to load the model for the paper reproduction
-# QHNet is the clean version, and we use QHNet to build the benchmark performance
 
 def get_model(args):
     model_args = {
@@ -25,13 +22,15 @@ def get_model(args):
         "use_block_S": getattr(args, "use_block_S", True),
         "ham_dim": getattr(args, "ham_dim", 24),
         "ham_hidden": getattr(args, "ham_hidden", 24 * 24 // 2),
+        "dataset_type": getattr(args, "dataset_type", "qh9"),
     }
     logging.info(f"model_args: {model_args}")
     model_dict ={
         "Real_QHNet".lower():Real_QHNet,
         "Real_QHNet_qh9".lower():Real_QHNet_qh9,
         "QHFlow".lower():QHFlow,
-        "QHFlow_qh9".lower():QHFlow_qh9
+        "QHFlow_qh9".lower():QHFlow,
+        "QHNet_flow_v5".lower():QHNet_flow_v5,
     }
     
     model_name = args.version.lower()

@@ -1,3 +1,10 @@
+"""
+QHNet for QH9
+
+The original QHNet model is from:
+<https://github.com/divelab/AIRS/tree/main/OpenDFT/QHBench/QH9>
+"""
+
 import time
 
 import torch.nn.functional as F

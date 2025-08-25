@@ -21,7 +21,7 @@ setup_paths()
 import warnings
 warnings.filterwarnings("ignore")
 
-from models import get_model, get_pl_model
+from models import get_pl_model
 from pytorch_lightning.utilities.model_summary import ModelSummary
 
 logger = logging.getLogger(__name__)
@@ -49,8 +49,9 @@ def main(conf):
 
     # Initialize the LightningModule
     pl_model_cls = get_pl_model(conf)
-    logger.info(f"Using model: {pl_model_cls}")
+    logger.info(f"Using pl_module: {pl_model_cls}")
     lit_model = pl_model_cls(conf)
+    logger.info(f"Using model: {lit_model.model.__class__}")
 
     print(ModelSummary(lit_model, max_depth=2)) # max_depth 2 is enough, 3 is for debugging
 
