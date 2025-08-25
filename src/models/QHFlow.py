@@ -115,31 +115,45 @@ class QHFlow(nn.Module):
         
         # Hidden representations with alternating parity
         self.hidden_irrep = o3.Irreps(
-            f"{self.hidden_size}x0e + {self.hidden_size}x1o + "
-            f"{self.hidden_size}x2e + {self.hidden_size}x3o + {self.hidden_size}x4e"
+            f"{self.hidden_size}x0e + "
+            f"{self.hidden_size}x1o + "
+            f"{self.hidden_size}x2e + "
+            f"{self.hidden_size}x3o + "
+            f"{self.hidden_size}x4e"
         )
         
         # Bottleneck representations
         self.hidden_bottle_irrep = o3.Irreps(
-            f"{self.bottle_hidden_size}x0e + {self.bottle_hidden_size}x1o + "
-            f"{self.bottle_hidden_size}x2e + {self.bottle_hidden_size}x3o + {self.bottle_hidden_size}x4e"
+            f"{self.bottle_hidden_size}x0e + "
+            f"{self.bottle_hidden_size}x1o + "
+            f"{self.bottle_hidden_size}x2e + "
+            f"{self.bottle_hidden_size}x3o + "
+            f"{self.bottle_hidden_size}x4e"
         )
         
         # Base representations (all even parity)
         self.hidden_irrep_base = o3.Irreps(
-            f"{self.hidden_size}x0e + {self.hidden_size}x1e + "
-            f"{self.hidden_size}x2e + {self.hidden_size}x3e + {self.hidden_size}x4e"
+            f"{self.hidden_size}x0e + "
+            f"{self.hidden_size}x1e + "
+            f"{self.hidden_size}x2e + "
+            f"{self.hidden_size}x3e + "
+            f"{self.hidden_size}x4e"
         )
         
         self.hidden_bottle_irrep_base = o3.Irreps(
-            f"{self.bottle_hidden_size}x0e + {self.bottle_hidden_size}x1e + "
-            f"{self.bottle_hidden_size}x2e + {self.bottle_hidden_size}x3e + {self.bottle_hidden_size}x4e"
+            f"{self.bottle_hidden_size}x0e + "
+            f"{self.bottle_hidden_size}x1e + "
+            f"{self.bottle_hidden_size}x2e + "
+            f"{self.bottle_hidden_size}x3e + "
+            f"{self.bottle_hidden_size}x4e"
         )
         
         # Input and output representations
         self.input_irrep = o3.Irreps(f"{self.hidden_size}x0e")
         self.final_out_irrep = o3.Irreps(
-            f"{self.hidden_size * 3}x0e + {self.hidden_size * 2}x1o + {self.hidden_size}x2e"
+            f"{self.hidden_size * 3}x0e + "
+            f"{self.hidden_size * 2}x1o + "
+            f"{self.hidden_size}x2e"
         ).simplify()
     
     def _init_embeddings(self, num_nodes):
@@ -361,8 +375,11 @@ class QHFlow(nn.Module):
         """Create layers for predicting matrix elements."""
         # Input irrep for expansion
         input_expand_irrep = o3.Irreps(
-            f"{self.bottle_hidden_size}x0e + {self.bottle_hidden_size}x1e + "
-            f"{self.bottle_hidden_size}x2e + {self.bottle_hidden_size}x3e + {self.bottle_hidden_size}x4e"
+            f"{self.bottle_hidden_size}x0e + "
+            f"{self.bottle_hidden_size}x1e + "
+            f"{self.bottle_hidden_size}x2e + "
+            f"{self.bottle_hidden_size}x3e + "
+            f"{self.bottle_hidden_size}x4e"
         )
         output_irrep = o3.Irreps("3x0e + 2x1e + 1x2e")
         
@@ -483,9 +500,20 @@ class QHFlow(nn.Module):
 
         # Process through network layers
         return self._process_through_layers(
-            data, node_attr_R, node_attr_R_init, node_feats_H, node_feats_H_init, 
-            node_feats_S, edge_src, edge_dst, edge_sh, rbf_new, 
-            full_dst, full_src, transpose_edge_index, keep_blocks
+            data,
+            node_attr_R,
+            node_attr_R_init,
+            node_feats_H,
+            node_feats_H_init,
+            node_feats_S,
+            edge_src,
+            edge_dst,
+            edge_sh,
+            rbf_new,
+            full_dst,
+            full_src,
+            transpose_edge_index,
+            keep_blocks,
         )
     
     def _apply_time_embedding(self, node_attr, data):
@@ -515,7 +543,6 @@ class QHFlow(nn.Module):
                     keep_blocks,
                 )
         else:
-            # MD17 dataset or non-block processing
             node_feats_H = self.onebody_reduction(data, H, keep_blocks)
             
             node_feats_H_init = None
@@ -529,9 +556,21 @@ class QHFlow(nn.Module):
         return node_feats_H, node_feats_H_init, node_feats_S
     
     def _process_through_layers(
-        self, data, node_attr_R, node_attr_R_init, node_feats_H, node_feats_H_init,
-        node_feats_S, edge_src, edge_dst, edge_sh, rbf_new,
-        full_dst, full_src, transpose_edge_index, keep_blocks
+        self,
+        data,
+        node_attr_R,
+        node_attr_R_init,
+        node_feats_H,
+        node_feats_H_init,
+        node_feats_S,
+        edge_src,
+        edge_dst,
+        edge_sh,
+        rbf_new,
+        full_dst,
+        full_src,
+        transpose_edge_index,
+        keep_blocks=False,
     ):
         """Process features through all network layers."""
         # Initialize features for higher-order interactions
@@ -605,28 +644,36 @@ class QHFlow(nn.Module):
         
         # Generate final predictions
         return self._generate_final_predictions(
-            data, fii, fij, node_attr_R_init, full_dst, full_src, 
-            transpose_edge_index, keep_blocks
+            data,
+            fii,
+            fij,
+            node_attr_R_init,
+            full_dst,
+            full_src,
+            transpose_edge_index,
+            keep_blocks,
         )
     
     def _concatenate_features(self, node_concat, node_attr_R):
         """Concatenate features with proper irrep ordering."""
         concat_features = torch.cat(node_concat, dim=-1)
         
-        if self.dataset_type == "md17":
-            return concat_features.index_select(
-                -1, self.hidden_irrep_concat_idx.to(node_attr_R.device)
-            )
-        else:
-            return (
-                concat_features
-                .index_select(-1, self.hidden_irrep_concat_idx.to(node_attr_R.device))
-                .contiguous()
-            )
+        return (
+            concat_features
+            .index_select(-1, self.hidden_irrep_concat_idx.to(node_attr_R.device))
+            .contiguous()
+        )
     
     def _generate_final_predictions(
-        self, data, fii, fij, node_attr_R_init, full_dst, full_src, 
-        transpose_edge_index, keep_blocks
+        self,
+        data,
+        fii,
+        fij,
+        node_attr_R_init,
+        full_dst,
+        full_src,
+        transpose_edge_index,
+        keep_blocks,
     ):
         """Generate final Hamiltonian predictions."""
         # Transform to output representation
@@ -642,7 +689,8 @@ class QHFlow(nn.Module):
         
         # Generate off-diagonal matrix elements
         node_pair_embedding = torch.cat(
-            [node_attr_R_init[full_dst], node_attr_R_init[full_src]], dim=-1
+            [node_attr_R_init[full_dst], node_attr_R_init[full_src]],
+            dim=-1
         )
         hamiltonian_non_diagonal_matrix = self.expand_ij["hamiltonian"](
             fij,
@@ -658,10 +706,7 @@ class QHFlow(nn.Module):
             # Ensure Hermitian symmetry
             hamiltonian_matrix = hamiltonian_matrix + hamiltonian_matrix.transpose(-1, -2)
 
-            if self.dataset_type == "md17":
-                return hamiltonian_matrix
-            else:
-                return {"hamiltonian": hamiltonian_matrix}
+            return {"hamiltonian": hamiltonian_matrix}
         else:
             # Return block matrices separately
             ret_hamiltonian_diagonal_matrix = (
@@ -674,13 +719,10 @@ class QHFlow(nn.Module):
                 + hamiltonian_non_diagonal_matrix[transpose_edge_index].transpose(-1, -2)
             )
             
-            if self.dataset_type == "md17":
-                return ret_hamiltonian_diagonal_matrix, ret_hamiltonian_non_diagonal_matrix
-            else:
-                return {
-                    "hamiltonian_diagonal_blocks": ret_hamiltonian_diagonal_matrix,
-                    "hamiltonian_non_diagonal_blocks": ret_hamiltonian_non_diagonal_matrix
-                }
+            return {
+                "hamiltonian_diagonal_blocks": ret_hamiltonian_diagonal_matrix,
+                "hamiltonian_non_diagonal_blocks": ret_hamiltonian_non_diagonal_matrix
+            }
 
     def forward(self, data, H, keep_blocks=False):
         """Forward pass of the QHFlow model.
@@ -694,18 +736,26 @@ class QHFlow(nn.Module):
             dict: Dictionary containing predicted Hamiltonian matrix/blocks
         """
         # Process molecular data and extract features
-        data, node_attr, edge_sh, rbf_new, transpose_edge_index = self.injection(data)
+        (
+            data,
+            node_attr,
+            edge_sh,
+            rbf_new,
+            transpose_edge_index,
+        ) = self.injection(data)
         
         # Apply neural network filter to predict Hamiltonian
         result = self.filter(
-            H, data, node_attr, edge_sh, rbf_new, transpose_edge_index, keep_blocks
+            H,
+            data,
+            node_attr,
+            edge_sh,
+            rbf_new,
+            transpose_edge_index,
+            keep_blocks,
         )
         
-        # Format results for MD17 dataset
-        if self.dataset_type == "md17" and not isinstance(result, dict):
-            return {"hamiltonian": result}
-        else:
-            return result
+        return result
 
     def build_graph(self, data, max_radius):
         """Build molecular graph with specified radius cutoff.
@@ -779,7 +829,12 @@ class QHFlow(nn.Module):
 
         return torch.cat(all_transpose_index, dim=-1)
 
-    def build_final_matrix(self, data, diagonal_matrix, non_diagonal_matrix):
+    def build_final_matrix(
+        self,
+        data,
+        diagonal_matrix,
+        non_diagonal_matrix,
+    ):
         """Build the final Hamiltonian matrix from diagonal and off-diagonal blocks.
         
         Args:

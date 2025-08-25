@@ -1,10 +1,3 @@
-"""
-QHNet for QH9
-
-The original QHNet model is from:
-<https://github.com/divelab/AIRS/tree/main/OpenDFT/QHBench/QH9>
-"""
-
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -15,6 +8,12 @@ from e3nn.o3 import Linear
 from .layers import *
 from .modules import *
 
+"""
+QHNet for QH9
+
+The original QHNet model is from:
+<https://github.com/divelab/AIRS/tree/main/OpenDFT/QHBench/QH9>
+"""
 
 class QHNet(nn.Module):
     """
@@ -75,31 +74,45 @@ class QHNet(nn.Module):
         
         # Hidden representations with alternating parity
         self.hidden_irrep = o3.Irreps(
-            f"{self.hidden_size}x0e + {self.hidden_size}x1o + "
-            f"{self.hidden_size}x2e + {self.hidden_size}x3o + {self.hidden_size}x4e"
+            f"{self.hidden_size}x0e + "
+            f"{self.hidden_size}x1o + "
+            f"{self.hidden_size}x2e + "
+            f"{self.hidden_size}x3o + "
+            f"{self.hidden_size}x4e"
         )
         
         # Bottleneck representations
         self.hidden_bottle_irrep = o3.Irreps(
-            f"{self.bottle_hidden_size}x0e + {self.bottle_hidden_size}x1o + "
-            f"{self.bottle_hidden_size}x2e + {self.bottle_hidden_size}x3o + {self.bottle_hidden_size}x4e"
+            f"{self.bottle_hidden_size}x0e + "
+            f"{self.bottle_hidden_size}x1o + "
+            f"{self.bottle_hidden_size}x2e + "
+            f"{self.bottle_hidden_size}x3o + "
+            f"{self.bottle_hidden_size}x4e"
         )
         
         # Base representations (all even parity)
         self.hidden_irrep_base = o3.Irreps(
-            f"{self.hidden_size}x0e + {self.hidden_size}x1e + "
-            f"{self.hidden_size}x2e + {self.hidden_size}x3e + {self.hidden_size}x4e"
+            f"{self.hidden_size}x0e + "
+            f"{self.hidden_size}x1e + "
+            f"{self.hidden_size}x2e + "
+            f"{self.hidden_size}x3e + "
+            f"{self.hidden_size}x4e"
         )
         
         self.hidden_bottle_irrep_base = o3.Irreps(
-            f"{self.bottle_hidden_size}x0e + {self.bottle_hidden_size}x1e + "
-            f"{self.bottle_hidden_size}x2e + {self.bottle_hidden_size}x3e + {self.bottle_hidden_size}x4e"
+            f"{self.bottle_hidden_size}x0e + "
+            f"{self.bottle_hidden_size}x1e + "
+            f"{self.bottle_hidden_size}x2e + "
+            f"{self.bottle_hidden_size}x3e + "
+            f"{self.bottle_hidden_size}x4e"
         )
         
         # Input and output representations
         self.input_irrep = o3.Irreps(f"{self.hidden_size}x0e")
         self.final_out_irrep = o3.Irreps(
-            f"{self.hidden_size * 3}x0e + {self.hidden_size * 2}x1o + {self.hidden_size}x2e"
+            f"{self.hidden_size * 3}x0e + "
+            f"{self.hidden_size * 2}x1o + "
+            f"{self.hidden_size}x2e"
         ).simplify()
     
     def _init_embeddings(self, num_nodes):
