@@ -1,7 +1,6 @@
 from .QHFlow import QHFlow
 from .Real_QHNet import QHNet as Real_QHNet
 from .Real_QHNet_qh9 import QHNet as Real_QHNet_qh9
-from .QHNet_flow_v5 import QHNet_flow as QHNet_flow_v5
 
 import logging
 logger = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ def get_model(args):
         "Real_QHNet_qh9".lower():Real_QHNet_qh9,
         "QHFlow".lower():QHFlow,
         "QHFlow_qh9".lower():QHFlow,
-        "QHNet_flow_v5".lower():QHNet_flow_v5,
     }
     
     model_name = args.version.lower()
