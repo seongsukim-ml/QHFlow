@@ -17,6 +17,7 @@ from common.qh9_utils import (
 from common.qh9_finetune_utils import (
     load_qh9_finetune_dataset, setup_qh9_finetune_model, validate_qh9_finetune_config
 )
+from common.data_utils import log_dataset_info
 from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
 
 # Setup multiprocessing
@@ -51,9 +52,12 @@ def main(conf):
     
     # Create data loaders
     train_loader, val_loader, test_loader= create_qh9_data_loaders(dataset, conf)
+    train_dataset = train_loader.dataset
+    val_dataset = val_loader.dataset
+    test_dataset = test_loader.dataset
+    
     
     # Log dataset information
-    from common.data_utils import log_dataset_info
     log_dataset_info(dataset, train_loader.dataset, val_loader.dataset, test_loader.dataset)
 
     # Initialize the LightningModule
@@ -77,6 +81,7 @@ def main(conf):
         # Setup callbacks and trainer
         callbacks = setup_callbacks(conf, output_dir)
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
+        log_training_config(conf)
         
         # Setup warmup training if needed
         setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks)

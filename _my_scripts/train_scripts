@@ -1,0 +1,10 @@
+conda activate qhflow
+cd ~/25DFT/QHFlow/src
+
+# python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
+# CUDA_VISIBLE_DEVICES=2,3 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
+
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol wandb.mode=online

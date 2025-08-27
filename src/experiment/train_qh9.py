@@ -89,6 +89,7 @@ def main(conf):
         # Setup callbacks and trainer
         callbacks = setup_callbacks(conf, output_dir)
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
+        log_training_config(conf)
         
         # Setup warmup training if needed
         setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks)

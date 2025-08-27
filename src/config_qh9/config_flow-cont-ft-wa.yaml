@@ -6,7 +6,8 @@ hydra:
 defaults:
   - model: QHFlow
   - dataset: QH9Stable
-device: 0
+devices: 1
+strategy: Null
 ckpt_dir: 'checkpoints'
 split_seed: 42
 check_val_every_n_epoch: 1

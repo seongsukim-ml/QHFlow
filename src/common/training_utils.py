@@ -56,8 +56,7 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
     """Setup PyTorch Lightning trainer."""
     
     trainer_kwargs = {
-        "max_epochs": conf.get("max_epochs", 1000),
-        "accelerator": conf.get("accelerator", "auto"),
+        "accelerator": conf.get("accelerator", "gpu"), # deprecated in v1.5.0
         "devices": conf.get("devices", 1),
         "precision": conf.get("precision", 32),
         "callbacks": callbacks,
@@ -65,10 +64,14 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
         "enable_progress_bar": conf.get("enable_progress_bar", True),
         "enable_checkpointing": conf.get("enable_checkpointing", True),
         "log_every_n_steps": conf.get("log_every_n_steps", 50),
-        "strategy": conf.get("strategy", "auto"), # "ddp"
         "num_nodes": conf.get("num_nodes", 1),
+        "num_sanity_val_steps": conf.get("num_sanity_val_steps", 2),
     }
     
+    trainer_kwargs["max_steps"] = conf.get("num_training_steps", -1)
+    
+    if trainer_kwargs["max_steps"] == -1:
+        trainer_kwargs["max_epochs"] = conf.get("max_epochs", 1000)   
     # Add gradient clipping if specified
     if conf.get("gradient_clip_val"):
         trainer_kwargs["gradient_clip_val"] = conf.gradient_clip_val
@@ -76,6 +79,9 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
     # Add strategy if specified
     if conf.get("strategy"):
         trainer_kwargs["strategy"] = conf.strategy
+        
+    if conf.get("data_type") == "float64":
+        trainer_kwargs["precision"] = 64
     
     trainer = pl.Trainer(**trainer_kwargs)
     return trainer
@@ -84,8 +90,11 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
 def log_training_config(conf: DictConfig):
     """Log training configuration."""
     logger.info("Training Configuration:")
-    logger.info(f"  Max epochs: {conf.get('max_epochs', 1000)}")
-    logger.info(f"  Accelerator: {conf.get('accelerator', 'auto')}")
+    logger.info(f"  Max steps: {conf.get('num_training_steps', -1)}")
+    if conf.get("num_training_steps", -1) == -1:
+        logger.info(f"  Max epochs: {conf.get('max_epochs', 1000)}")
+    # logger.info(f"  Accelerator: {conf.get('accelerator', 'auto')}")
+    logger.info(f"  Strategy: {conf.get('strategy', "None")}")
     logger.info(f"  Devices: {conf.get('devices', 1)}")
     logger.info(f"  Precision: {conf.get('precision', 32)}")
     logger.info(f"  Data type: {conf.get('data_type', 'float32')}")

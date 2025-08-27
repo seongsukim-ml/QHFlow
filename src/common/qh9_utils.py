@@ -6,6 +6,8 @@ import logging
 import os
 from torch_geometric.loader import DataLoader
 from omegaconf import DictConfig
+from torch.utils.data import DistributedSampler
+import torch.distributed as dist
 
 logger = logging.getLogger(__name__)
 
@@ -75,30 +77,75 @@ def _create_qh9_data_loaders(train_dataset, valid_dataset, test_dataset, conf: D
         if batch_size[2] is not None:
             test_batch_size = batch_size[2]
             print(f"Using custom test batch size: {test_batch_size} instead of config batch size {conf.dataset.test_batch_size}")
+
+    use_ddp = conf.get("strategy", "None") == "ddp"
+    if not use_ddp:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=train_batch_size,
+            shuffle=True,
+            num_workers=conf.dataset.num_workers,
+            pin_memory=conf.dataset.pin_memory,
+        )
         
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=train_batch_size,
-        shuffle=True,
-        num_workers=conf.dataset.num_workers,
-        pin_memory=conf.dataset.pin_memory,
-    )
-    
-    val_loader = DataLoader(
-        valid_dataset,
-        batch_size=valid_batch_size,
-        shuffle=False,
-        num_workers=conf.dataset.num_workers,
-        pin_memory=conf.dataset.pin_memory,
-    )
-    
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=test_batch_size,
-        shuffle=False,
-        num_workers=conf.dataset.num_workers,
-        pin_memory=conf.dataset.pin_memory,
-    )
+        val_loader = DataLoader(
+            valid_dataset,
+            batch_size=valid_batch_size,
+            shuffle=False,
+            num_workers=conf.dataset.num_workers,
+            pin_memory=conf.dataset.pin_memory,
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=test_batch_size,
+            shuffle=False,
+            num_workers=conf.dataset.num_workers,
+            pin_memory=conf.dataset.pin_memory,
+        )
+    else:
+        # Potential issue with automatic sampler replacement
+        # By default, Lightning replaces shuffle=True with DistributedSampler in DDP mode.
+        # However, this replacement may not work reliably when using PyG's torch_geometric.loader.DataLoader (subclass)
+        # combined with list/mask indexing for subsets. This can cause each rank to process all data
+        # or have different batch counts, leading to hangs at all-reduce synchronization points.
+
+        # Batch size imbalance
+        # When drop_last=False, the last batch size can vary between ranks.
+        # This can cause step count mismatches when combined with Lightning's collect/sync logic, leading to hangs.
+
+        # Worker explosion/pipeline bottleneck 
+        # If num_workers × number of GPUs is too high, a setup that works fine with 2 GPUs
+        # may hang with 4 GPUs due to IPC/file lock/CPU saturation.
+        print("Using DDP")
+        print("Num workers: ", conf.dataset.num_workers)
+        # sampler = DistributedSampler(train_dataset, shuffle=True, drop_last=True)
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=train_batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=conf.dataset.pin_memory,
+            persistent_workers=False,
+            drop_last=True,
+            # sampler=sampler,
+        )
+        val_loader = DataLoader(
+            valid_dataset,
+            batch_size=valid_batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=conf.dataset.pin_memory,
+            persistent_workers=False,
+            drop_last=True,
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=test_batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=conf.dataset.pin_memory,
+        )
     
     return train_loader, val_loader, test_loader
 
@@ -131,6 +178,7 @@ def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logg
             devices=1,
             enable_progress_bar=True,
             gradient_clip_val=5.0,
+            num_sanity_val_steps=8,
         )
         
         # Create warmup data loader with smaller batch size

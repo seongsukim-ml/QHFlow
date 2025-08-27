@@ -83,6 +83,7 @@ def main(conf):
         # Setup callbacks and trainer
         callbacks = setup_callbacks(conf, output_dir)
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
+        log_training_config(conf)
         
         # Start training/testing
         _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf)
