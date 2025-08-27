@@ -23,6 +23,8 @@ src/timer.dat
 /ckpts/*
 !/ckpts/README.md
 
+/ckpts_old/*
+
 debug_outputs/
 .cursorrc
 /.cursor

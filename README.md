@@ -22,23 +22,24 @@ pip install -r requirements.txt
 ```
 
 ## Directory and Files
+The project follows this directory structure (will be updated soon):
 ```
 .
-├── src/                       # Source code
+├── src/                       # Source code (python files should be run here)
 │   ├── experiment/            # Training/finetune/inference entrypoints
 │   ├── config_md17/           # MD17 configs (dataset/model)
 │   ├── config_qh9/            # QH9 configs (dataset/model)
 │   ├── dataset_module/        # Dataset loaders and split utilities
-│   ├── models/                # QHNet/Real_QHNet & Flow variants
+│   ├── models/                # QHFlow / QHNet
 │   ├── pl_module/             # PyTorch Lightning modules
 │   ├── utils.py
-│   └── auxiliary.gbs
+│   ...
 ├── dataset/                   # Data root (auto or manual download)
 ├── _my_scripts/               # Helper scripts for dataset processing 
 ├── requirements.txt
 ├── ckpts                      # Pretrained/finetuned checkpoints files
 ├── README.md
-└── auxiliary.gbs
+...
 ```
 
 ## Dataset
@@ -77,7 +78,7 @@ We plan to provide pre-trained model checkpoints for all datasets. Currently, we
 **MD17 Dataset:**
 ```bash
 ckpts/md17/${DATASET}/checkpoints/weights.ckpt
-# continune_ckpt=../ckpts/md17/water/checkpoints/weights.ckpt           # Example
+# ckpt=../ckpts/md17/water/checkpoints/weights.ckpt           # Example
 ```
 
 **QH9 Dataset:**
@@ -85,8 +86,8 @@ ckpts/md17/${DATASET}/checkpoints/weights.ckpt
 ckpts/${DATASET}/${SPLIT}/checkpoints/weights.ckpt       # Pretrained
 ckpts/${DATASET}/${SPLIT}-FT/checkpoints/weights.ckpt    # Finetuned
 
-# continune_ckpt=${ROOT}$/ckpts/QH9Stable/random/checkpoints/weights.ckpt     # Example (Pretrained)
-# continune_ckpt=${ROOT}$/ckpts/QH9Stable/random-FT/checkpoints/weights.ckpt  # Example (Finetuned)
+# ckpt=${ROOT}$/ckpts/QH9Stable/random/checkpoints/weights.ckpt     # Example (Pretrained)
+# ckpt=${ROOT}$/ckpts/QH9Stable/random-FT/checkpoints/weights.ckpt  # Example (Finetuned)
 ```
 
 Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset and split names:
@@ -95,7 +96,7 @@ Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset a
   - **QH9Stable SPLIT**: `random`, `size_ood`
   - **QH9Dynamic SPLIT**: `geometry`, `mol`
 
-To use these checkpoints, specify the path in the `continune_ckpt` parameter when running inference or prediction commands. `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
+To use these checkpoints, specify the path in the `ckpt` parameter when running inference or prediction commands. `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
 
 ## Usage
 
@@ -143,6 +144,8 @@ python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random
 ```
 
 ### Finetune
+Finetuning requires a pretrained model as a starting point, which is specified using the 'original_ckpt' parameter in the command.
+
 ```bash
 python -m experiment.train_qh9-finetune dataset=${DATASET} dataset.split=${SPLIT} +original_ckpt=${PRETRAINED_CKPT}
 ```
@@ -154,17 +157,17 @@ python -m experiment.train_qh9-finetune dataset=QH9Stable dataset.split=random +
 
 ### Inference (SCF acceleration measure)
 ```bash
-python -m experiment.train_md17 mode=inference dataset=${DATASET} continune_ckpt=${CKPT}
-python -m experiment.train_qh9 mode=inference dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
+python -m experiment.train_md17 mode=inference dataset=${DATASET} ckpt=${CKPT}
+python -m experiment.train_qh9 mode=inference dataset=${DATASET} dataset.split=${SPLIT} ckpt=${CKPT}
 ```
 
 **Examples:**
 ```bash
 # MD17 inference
-python -m experiment.train_md17 mode=inference dataset=water continune_ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+python -m experiment.train_md17 mode=inference dataset=water ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
 
 # QH9 inference
-python -m experiment.train_qh9 mode=inference dataset=QH9Stable dataset.split=random continune_ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+python -m experiment.train_qh9 mode=inference dataset=QH9Stable dataset.split=random ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
 ```
 
 ### Prediction (Saving the Output)
@@ -177,17 +180,17 @@ This mode is used to predict test files and save individual Hamiltonian matrices
 - Files are organized by dataset and model configuration
 
 ```bash
-python -m experiment.train_md17 mode=predict dataset=${DATASET} continune_ckpt=${CKPT}
-python -m experiment.train_qh9 mode=predict dataset=${DATASET} dataset.split=${SPLIT} continune_ckpt=${CKPT}
+python -m experiment.train_md17 mode=predict dataset=${DATASET} ckpt=${CKPT}
+python -m experiment.train_qh9 mode=predict dataset=${DATASET} dataset.split=${SPLIT} ckpt=${CKPT}
 ```
 
 **Examples:**
 ```bash
 # MD17 prediction
-python -m experiment.train_md17 mode=predict dataset=water continune_ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+python -m experiment.train_md17 mode=predict dataset=water ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
 
 # QH9 prediction
-python -m experiment.train_qh9 mode=predict dataset=QH9Stable dataset.split=random continune_ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+python -m experiment.train_qh9 mode=predict dataset=QH9Stable dataset.split=random ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
 ```
 
 **Output Location:**
