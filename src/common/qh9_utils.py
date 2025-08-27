@@ -33,21 +33,52 @@ def load_qh9_dataset(conf: DictConfig, root_path: str):
     
     return dataset
 
-
-def create_qh9_data_loaders(dataset, conf: DictConfig):
-    """Create train, validation, and test data loaders for QH9."""
+def _create_qh9_dataset(dataset, conf: DictConfig):
     train_dataset = dataset[dataset.train_mask]
     valid_dataset = dataset[dataset.val_mask]
     test_dataset = dataset[dataset.test_mask]
     
+    return train_dataset, valid_dataset, test_dataset
+
+def create_qh9_data_loaders(dataset, conf: DictConfig, batch_size=[None, None, None]):
+    """Create train, validation, and test data loaders for QH9."""
+    train_dataset, valid_dataset, test_dataset = _create_qh9_dataset(dataset, conf)
+    return _create_qh9_data_loaders(train_dataset, valid_dataset, test_dataset, conf, batch_size)
+
+def _create_qh9_data_loaders(train_dataset, valid_dataset, test_dataset, conf: DictConfig, batch_size=[None, None, None]):
     # Handle partial validation if specified
     if getattr(conf, "partial_val", None) is not None:
         assert conf.partial_val > 0 and conf.partial_val <= 1
+        original_valid_size = len(valid_dataset)
         valid_dataset = valid_dataset[: int(len(valid_dataset) * conf.partial_val)]
+        print(f"Using partial validation: {conf.partial_val} ({original_valid_size} -> {len(valid_dataset)}) (for speed up)")
     
+    train_batch_size = conf.dataset.train_batch_size
+    valid_batch_size = conf.dataset.valid_batch_size
+    test_batch_size = conf.dataset.test_batch_size
+    
+    if batch_size is not None:
+        if isinstance(batch_size, int):
+            batch_size = [batch_size, batch_size, batch_size]
+        if len(batch_size) == 1:
+            batch_size = batch_size * 3
+        if len(batch_size) == 2:
+            batch_size = batch_size + [batch_size[-1]]
+        if len(batch_size) != 3:
+            raise ValueError(f"Batch size must be a int or a list of 1, 2, 3 elements: {batch_size}")
+        if batch_size[0] is not None: 
+            train_batch_size = batch_size[0]
+            print(f"Using custom train batch size: {train_batch_size} instead of config batch size {conf.dataset.train_batch_size}")
+        if batch_size[1] is not None:
+            valid_batch_size = batch_size[1]
+            print(f"Using custom valid batch size: {valid_batch_size} instead of config batch size {conf.dataset.valid_batch_size}")
+        if batch_size[2] is not None:
+            test_batch_size = batch_size[2]
+            print(f"Using custom test batch size: {test_batch_size} instead of config batch size {conf.dataset.test_batch_size}")
+        
     train_loader = DataLoader(
         train_dataset,
-        batch_size=conf.dataset.train_batch_size,
+        batch_size=train_batch_size,
         shuffle=True,
         num_workers=conf.dataset.num_workers,
         pin_memory=conf.dataset.pin_memory,
@@ -55,7 +86,7 @@ def create_qh9_data_loaders(dataset, conf: DictConfig):
     
     val_loader = DataLoader(
         valid_dataset,
-        batch_size=conf.dataset.train_batch_size,
+        batch_size=valid_batch_size,
         shuffle=False,
         num_workers=conf.dataset.num_workers,
         pin_memory=conf.dataset.pin_memory,
@@ -63,14 +94,13 @@ def create_qh9_data_loaders(dataset, conf: DictConfig):
     
     test_loader = DataLoader(
         test_dataset,
-        batch_size=conf.dataset.test_batch_size,
+        batch_size=test_batch_size,
         shuffle=False,
         num_workers=conf.dataset.num_workers,
         pin_memory=conf.dataset.pin_memory,
     )
     
-    return train_loader, val_loader, test_loader, train_dataset, valid_dataset, test_dataset
-
+    return train_loader, val_loader, test_loader
 
 def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logger, callbacks):
     """Setup warmup training for Real_QHNet if needed."""

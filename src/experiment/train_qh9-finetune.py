@@ -28,7 +28,7 @@ setup_paths()
 import warnings
 warnings.filterwarnings("ignore")
 
-from models import get_model, get_pl_model
+from pl_module import get_pl_model
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +50,11 @@ def main(conf):
     dataset = load_qh9_finetune_dataset(conf, root_path)
     
     # Create data loaders
-    train_loader, val_loader, test_loader, train_dataset, valid_dataset, test_dataset = create_qh9_data_loaders(dataset, conf)
+    train_loader, val_loader, test_loader= create_qh9_data_loaders(dataset, conf)
     
     # Log dataset information
     from common.data_utils import log_dataset_info
-    log_dataset_info(dataset, train_dataset, valid_dataset, test_dataset)
+    log_dataset_info(dataset, train_loader.dataset, val_loader.dataset, test_loader.dataset)
 
     # Initialize the LightningModule
     pl_model_cls = get_pl_model(conf)

@@ -10,7 +10,7 @@ from common.setup import (
     setup_paths, setup_auxiliary_basis, setup_tensor_type_and_seed,
     get_root_path, get_mode
 )
-from common.data_utils import create_data_loaders, log_dataset_info
+from common.data_utils import create_data_loaders, log_dataset_info, load_md17_dataset, create_md17_data_loaders
 from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
 
 # Setup paths and import models
@@ -19,7 +19,7 @@ setup_paths()
 import warnings
 warnings.filterwarnings("ignore")
 
-from models import get_pl_model
+from pl_module import get_pl_model
 from pytorch_lightning.utilities.model_summary import ModelSummary
 
 logger = logging.getLogger(__name__)
@@ -37,30 +37,13 @@ def main(conf):
     # Load the dataset
     root_path = get_root_path()
     logger.info(f"Loading {conf.dataset.dataset_name} dataset...")
+    dataset = load_md17_dataset(conf, root_path)
     
-    dataset = MD17_DFT(
-        os.path.join(root_path, "dataset"),
-        name=conf.dataset.dataset_name,
-        transform=get_mask,
-    )
-    
-    train_dataset, valid_dataset, test_dataset = random_split(
-        dataset,
-        [
-            conf.dataset.num_train,
-            conf.dataset.num_valid,
-            len(dataset) - (conf.dataset.num_train + conf.dataset.num_valid),
-        ],
-        seed=conf.split_seed,
-    )
-
     # Create data loaders
-    train_loader, val_loader, test_loader = create_data_loaders(
-        train_dataset, valid_dataset, test_dataset, conf
-    )
+    train_loader, val_loader, test_loader = create_md17_data_loaders(dataset, conf)
     
     # Log dataset information
-    log_dataset_info(dataset, train_dataset, valid_dataset, test_dataset)
+    log_dataset_info(dataset, train_loader.dataset, val_loader.dataset, test_loader.dataset)
 
     # Initialize the LightningModule
     pl_model_cls = get_pl_model(conf)

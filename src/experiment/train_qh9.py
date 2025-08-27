@@ -21,11 +21,21 @@ setup_paths()
 import warnings
 warnings.filterwarnings("ignore")
 
-from models import get_pl_model
+from pl_module import get_pl_model
 from pytorch_lightning.utilities.model_summary import ModelSummary
 
 logger = logging.getLogger(__name__)
 
+# Mode descriptions
+MODE_DESCRIPTIONS = {
+    "train": "Training mode - Trains the model on the training dataset and validates on validation set",
+    "finetune": "Training mode with finetuning - Finetunes the model on the training dataset and validates on validation set",
+    "test": "Test mode - Evaluates model performance on the test dataset using trained checkpoint",
+    "test-mul": "Multiple test mode - Makes multiple test predictions with different random seeds",
+    "predict": "Prediction mode - Generates predictions on new data using trained model",
+    "inference": "Inference mode - Runs model inference with additional SCF integration",
+    "eval": "Evaluation mode - Similar to test but with additional metrics and analysis (Deprecated)",
+}
 
 @hydra.main(config_path="../config_qh9", config_name="config_flow-cont-10lw")
 def main(conf):
@@ -41,11 +51,11 @@ def main(conf):
     dataset = load_qh9_dataset(conf, root_path)
     
     # Create data loaders
-    train_loader, val_loader, test_loader, train_dataset, valid_dataset, test_dataset = create_qh9_data_loaders(dataset, conf)
+    train_loader, val_loader, test_loader = create_qh9_data_loaders(dataset, conf)
     
     # Log dataset information
     from common.data_utils import log_dataset_info
-    log_dataset_info(dataset, train_dataset, valid_dataset, test_dataset)
+    log_dataset_info(dataset, train_loader.dataset, val_loader.dataset, test_loader.dataset)
 
     # Initialize the LightningModule
     pl_model_cls = get_pl_model(conf)
@@ -57,8 +67,11 @@ def main(conf):
 
     # Get and validate mode
     mode = get_mode(conf)
-    assert mode in ["train", "test", "predict-mul", "eval", "inference", "predict"]
-    if mode in ["train", "test", "predict-mul", "inference", "predict"]:
+    assert mode in ["train", "finetune", "test", "test-mul", "predict", "inference", "eval"]
+    if mode == "finetune":
+        logger.info("Finetuning should be used train_qh9-finetune.py")
+        return
+    if mode in ["train", "test", "test-mul", "predict", "inference", "eval"]:
         # Import checkpoint utilities
         from common.checkpoint_utils import get_checkpoint_path, setup_wandb_logger
         
