@@ -10,7 +10,7 @@ from common.setup import (
     setup_paths, setup_auxiliary_basis, setup_tensor_type_and_seed,
     get_root_path, get_mode
 )
-from common.data_utils import create_data_loaders, log_dataset_info, load_md17_dataset, create_md17_data_loaders
+from common.data_utils import create_md17_data_loaders, log_dataset_info, load_md17_dataset
 from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
 
 # Setup paths and import models
@@ -24,6 +24,16 @@ from pytorch_lightning.utilities.model_summary import ModelSummary
 
 logger = logging.getLogger(__name__)
 
+# Mode descriptions
+MODE_DESCRIPTIONS = {
+    "train": "Training mode - Trains the model on the training dataset and validates on validation set",
+    "finetune": "Training mode with finetuning - Finetunes the model on the training dataset and validates on validation set",
+    "test": "Test mode - Evaluates model performance on the test dataset using trained checkpoint",
+    "test-mul": "Multiple test mode - Makes multiple test predictions with different random seeds",
+    "predict": "Prediction mode - Generates predictions on new data using trained model",
+    "inference": "Inference mode - Runs model inference with additional SCF integration",
+    "eval": "Evaluation mode - Similar to test but with additional metrics and analysis (Deprecated)",
+}
 
 @hydra.main(config_path="../config_md17", config_name="config_flow-lw10")
 def main(conf):
@@ -77,9 +87,6 @@ def main(conf):
         # Start training/testing
         _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf)
 
-    elif mode == "eval":
-        _run_evaluation(conf, pl_model_cls, test_loader, output_dir)
-
 
 def _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf):
     """Run training or testing based on mode."""
@@ -112,37 +119,6 @@ def _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader,
         setattr(lit_model, "test_mode", mode)
         logger.info(f"{lit_model.test_mode}...")
         trainer.test(lit_model, inf_loader, ckpt_path=ckpt_path)
-
-
-def _run_evaluation(conf, pl_model_cls, test_loader, output_dir):
-    """Run evaluation mode."""
-    import torch
-    
-    model_ckpt = conf.model_ckpt
-    lit_model = pl_model_cls.load_from_checkpoint(model_ckpt, conf=conf)
-    logger.info("Model loaded")
-    
-    logger.info("Testing...")
-    default_type = torch.float64 if conf.data_type == "float64" else torch.float32
-    errors, h_output = lit_model.test_over_dataset(test_loader, default_type)
-    
-    msg = f"dataset {conf.dataset.dataset_name}: {errors.get('total_items')} :"
-    for key in errors.keys():
-        if key == "hamiltonian" or key == "orbital_energies":
-            msg += f"{key}: {errors[key]*1e6:.3f}(10^-6), "
-        elif key == "orbital_coefficients":
-            msg += f"{key}: {errors[key]*1e2:.4f}(10^-2)"
-        elif key == "total_items":
-            msg += f"{key}: {errors[key]:d}, "
-        else:
-            msg += f"{key}: {errors[key]:.8f}, "
-    
-    logger.info(msg)
-    output_dir_name = "output"
-    os.makedirs(output_dir / output_dir_name, exist_ok=True)
-    with open(output_dir / output_dir_name / "results.txt", "w") as f:
-        f.write(msg)
-    torch.save(h_output, output_dir / output_dir_name / "h_output.pt")
 
 
 if __name__ == "__main__":

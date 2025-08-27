@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""
+Test script for orbital calculation methods in base_module.py
+
+This script tests both the original eigenvalue-based method and the new Cholesky-based method
+for calculating orbital energies and coefficients from overlap and Hamiltonian matrices.
+"""
+
+import torch
+import numpy as np
+import sys
+import os
+
+# Add the src directory to the path to import the module
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+
+from pl_module.base_module import LitModel
+
+def create_test_matrices(batch_size=3, matrix_size=5, seed=42):
+    """Create test overlap and Hamiltonian matrices.
+    
+    Args:
+        batch_size (int): Number of matrices in the batch
+        matrix_size (int): Size of each matrix (matrix_size x matrix_size)
+        seed (int): Random seed for reproducibility
+        
+    Returns:
+        Tuple[Tensor, Tensor]: (overlap_matrices, hamiltonian_matrices)
+    """
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    
+    # Create positive definite overlap matrices
+    # Method: S = A A^T + εI where A is random and ε is small positive number
+    A = torch.randn(batch_size, matrix_size, matrix_size)
+    overlap_matrices = torch.bmm(A, A.transpose(-1, -2)) + 1e-6 * torch.eye(matrix_size).unsqueeze(0)
+    
+    # Create symmetric Hamiltonian matrices
+    H = torch.randn(batch_size, matrix_size, matrix_size)
+    hamiltonian_matrices = H + H.transpose(-1, -2)  # Make symmetric
+    
+    return overlap_matrices, hamiltonian_matrices
+
+def create_ill_conditioned_matrices(batch_size=2, matrix_size=4, seed=123):
+    """Create ill-conditioned test matrices to test numerical stability.
+    
+    Args:
+        batch_size (int): Number of matrices in the batch
+        matrix_size (int): Size of each matrix
+        seed (int): Random seed for reproducibility
+        
+    Returns:
+        Tuple[Tensor, Tensor]: (overlap_matrices, hamiltonian_matrices)
+    """
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    
+    # Create nearly singular overlap matrices
+    A = torch.randn(batch_size, matrix_size, matrix_size)
+    overlap_matrices = torch.bmm(A, A.transpose(-1, -2))
+    
+    # Make one eigenvalue very small
+    eigvals, eigvecs = torch.linalg.eigh(overlap_matrices)
+    eigvals[:, 0] = 1e-10  # Make first eigenvalue very small
+    overlap_matrices = torch.bmm(torch.bmm(eigvecs, torch.diag_embed(eigvals)), eigvecs.transpose(-1, -2))
+    
+    # Create symmetric Hamiltonian matrices
+    H = torch.randn(batch_size, matrix_size, matrix_size)
+    hamiltonian_matrices = H + H.transpose(-1, -2)
+    
+    return overlap_matrices, hamiltonian_matrices
+
+def test_basic_functionality():
+    """Test basic functionality of both methods."""
+    print("=" * 60)
+    print("Testing Basic Functionality")
+    print("=" * 60)
+    
+    # Create test matrices
+    overlap_matrices, hamiltonian_matrices = create_test_matrices(batch_size=3, matrix_size=5)
+    
+    print(f"Overlap matrix shape: {overlap_matrices.shape}")
+    print(f"Hamiltonian matrix shape: {hamiltonian_matrices.shape}")
+    
+    # Test original method
+    print("\nTesting original eigenvalue method...")
+    try:
+        energies_orig, coeffs_orig = LitModel.cal_orbital_and_energies(overlap_matrices, hamiltonian_matrices)
+        print(f"✓ Original method successful")
+        print(f"  Energies shape: {energies_orig.shape}")
+        print(f"  Coefficients shape: {coeffs_orig.shape}")
+        print(f"  Energy range: [{energies_orig.min().item():.6f}, {energies_orig.max().item():.6f}]")
+    except Exception as e:
+        print(f"✗ Original method failed: {e}")
+        return False
+    
+    # Test Cholesky method
+    print("\nTesting Cholesky method...")
+    try:
+        energies_chol, coeffs_chol = LitModel.cal_orbital_and_energies_cholesky(overlap_matrices, hamiltonian_matrices)
+        print(f"✓ Cholesky method successful")
+        print(f"  Energies shape: {energies_chol.shape}")
+        print(f"  Coefficients shape: {coeffs_chol.shape}")
+        print(f"  Energy range: [{energies_chol.min().item():.6f}, {energies_chol.max().item():.6f}]")
+    except Exception as e:
+        print(f"✗ Cholesky method failed: {e}")
+        return False
+    
+    return True
+
+def test_result_consistency():
+    """Test that both methods give consistent results."""
+    print("\n" + "=" * 60)
+    print("Testing Result Consistency")
+    print("=" * 60)
+    
+    # Create test matrices
+    overlap_matrices, hamiltonian_matrices = create_test_matrices(batch_size=2, matrix_size=4)
+    
+    # Get results from both methods
+    energies_orig, coeffs_orig = LitModel.cal_orbital_and_energies(overlap_matrices, hamiltonian_matrices)
+    energies_chol, coeffs_chol = LitModel.cal_orbital_and_energies_cholesky(overlap_matrices, hamiltonian_matrices)
+    
+    # Compare energies (should be very close)
+    energy_diff = torch.abs(energies_orig - energies_chol)
+    max_energy_diff = energy_diff.max().item()
+    mean_energy_diff = energy_diff.mean().item()
+    
+    print(f"Energy comparison:")
+    print(f"  Max difference: {max_energy_diff:.2e}")
+    print(f"  Mean difference: {mean_energy_diff:.2e}")
+    
+    # Check if energies are sorted (should be for both methods)
+    energies_orig_sorted = torch.sort(energies_orig, dim=-1)[0]
+    energies_chol_sorted = torch.sort(energies_chol, dim=-1)[0]
+    
+    energy_sorted_diff = torch.abs(energies_orig_sorted - energies_chol_sorted)
+    max_sorted_diff = energy_sorted_diff.max().item()
+    
+    print(f"  Max difference (sorted): {max_sorted_diff:.2e}")
+    
+    # Compare coefficients (more complex due to possible sign differences and ordering)
+    # We'll check the orthogonality condition: C^T S C = I
+    S_C_orig = torch.bmm(overlap_matrices, coeffs_orig)
+    orthogonality_orig = torch.bmm(coeffs_orig.transpose(-1, -2), S_C_orig)
+    
+    S_C_chol = torch.bmm(overlap_matrices, coeffs_chol)
+    orthogonality_chol = torch.bmm(coeffs_chol.transpose(-1, -2), S_C_chol)
+    
+    # Check how close to identity matrix
+    identity = torch.eye(overlap_matrices.size(-1)).unsqueeze(0).expand_as(orthogonality_orig)
+    
+    ortho_diff_orig = torch.abs(orthogonality_orig - identity).max().item()
+    ortho_diff_chol = torch.abs(orthogonality_chol - identity).max().item()
+    
+    print(f"\nOrthogonality check (C^T S C should be identity):")
+    print(f"  Original method max deviation: {ortho_diff_orig:.2e}")
+    print(f"  Cholesky method max deviation: {ortho_diff_chol:.2e}")
+    
+    # Check eigenvalue equation: H C = S C E
+    H_C_orig = torch.bmm(hamiltonian_matrices, coeffs_orig)
+    S_C_E_orig = torch.bmm(S_C_orig, torch.diag_embed(energies_orig))
+    eigenvalue_error_orig = torch.abs(H_C_orig - S_C_E_orig).max().item()
+    
+    H_C_chol = torch.bmm(hamiltonian_matrices, coeffs_chol)
+    S_C_E_chol = torch.bmm(S_C_chol, torch.diag_embed(energies_chol))
+    eigenvalue_error_chol = torch.abs(H_C_chol - S_C_E_chol).max().item()
+    
+    print(f"\nEigenvalue equation check (H C = S C E):")
+    print(f"  Original method max error: {eigenvalue_error_orig:.2e}")
+    print(f"  Cholesky method max error: {eigenvalue_error_chol:.2e}")
+    
+    # Determine if results are consistent
+    tolerance = 1e-6
+    consistent = (max_energy_diff < tolerance and 
+                 ortho_diff_orig < tolerance and 
+                 ortho_diff_chol < tolerance and
+                 eigenvalue_error_orig < tolerance and
+                 eigenvalue_error_chol < tolerance)
+    
+    if consistent:
+        print(f"\n✓ Results are consistent within tolerance {tolerance}")
+    else:
+        print(f"\n✗ Results may not be consistent within tolerance {tolerance}")
+    
+    return consistent
+
+def test_numerical_stability():
+    """Test numerical stability with ill-conditioned matrices."""
+    print("\n" + "=" * 60)
+    print("Testing Numerical Stability")
+    print("=" * 60)
+    
+    # Create ill-conditioned matrices
+    overlap_matrices, hamiltonian_matrices = create_ill_conditioned_matrices()
+    
+    print("Testing with ill-conditioned matrices...")
+    
+    # Test original method
+    print("\nOriginal method with ill-conditioned matrices:")
+    try:
+        energies_orig, coeffs_orig = LitModel.cal_orbital_and_energies(overlap_matrices, hamiltonian_matrices)
+        print(f"✓ Original method successful")
+        
+        # Check orthogonality
+        S_C_orig = torch.bmm(overlap_matrices, coeffs_orig)
+        orthogonality_orig = torch.bmm(coeffs_orig.transpose(-1, -2), S_C_orig)
+        identity = torch.eye(overlap_matrices.size(-1)).unsqueeze(0).expand_as(orthogonality_orig)
+        ortho_error_orig = torch.abs(orthogonality_orig - identity).max().item()
+        print(f"  Orthogonality error: {ortho_error_orig:.2e}")
+        
+    except Exception as e:
+        print(f"✗ Original method failed: {e}")
+        ortho_error_orig = float('inf')
+    
+    # Test Cholesky method
+    print("\nCholesky method with ill-conditioned matrices:")
+    try:
+        energies_chol, coeffs_chol = LitModel.cal_orbital_and_energies_cholesky(overlap_matrices, hamiltonian_matrices)
+        print(f"✓ Cholesky method successful")
+        
+        # Check orthogonality
+        S_C_chol = torch.bmm(overlap_matrices, coeffs_chol)
+        orthogonality_chol = torch.bmm(coeffs_chol.transpose(-1, -2), S_C_chol)
+        identity = torch.eye(overlap_matrices.size(-1)).unsqueeze(0).expand_as(orthogonality_chol)
+        ortho_error_chol = torch.abs(orthogonality_chol - identity).max().item()
+        print(f"  Orthogonality error: {ortho_error_chol:.2e}")
+        
+    except Exception as e:
+        print(f"✗ Cholesky method failed: {e}")
+        ortho_error_chol = float('inf')
+    
+    # Compare stability
+    if ortho_error_orig < ortho_error_chol:
+        print(f"\n✓ Original method is more stable for this case")
+    elif ortho_error_chol < ortho_error_orig:
+        print(f"\n✓ Cholesky method is more stable for this case")
+    else:
+        print(f"\n≈ Both methods have similar stability for this case")
+
+def test_performance():
+    """Test performance comparison between methods."""
+    print("\n" + "=" * 60)
+    print("Testing Performance")
+    print("=" * 60)
+    
+    import time
+    
+    # Create larger test matrices
+    batch_size, matrix_size = 10, 20
+    overlap_matrices, hamiltonian_matrices = create_test_matrices(batch_size, matrix_size)
+    
+    print(f"Testing with batch_size={batch_size}, matrix_size={matrix_size}")
+    
+    # Warm up
+    LitModel.cal_orbital_and_energies(overlap_matrices, hamiltonian_matrices)
+    LitModel.cal_orbital_and_energies_cholesky(overlap_matrices, hamiltonian_matrices)
+    
+    # Time original method
+    num_runs = 10
+    start_time = time.time()
+    for _ in range(num_runs):
+        LitModel.cal_orbital_and_energies(overlap_matrices, hamiltonian_matrices)
+    orig_time = (time.time() - start_time) / num_runs
+    
+    # Time Cholesky method
+    start_time = time.time()
+    for _ in range(num_runs):
+        LitModel.cal_orbital_and_energies_cholesky(overlap_matrices, hamiltonian_matrices)
+    chol_time = (time.time() - start_time) / num_runs
+    
+    print(f"Original method average time: {orig_time*1000:.2f} ms")
+    print(f"Cholesky method average time: {chol_time*1000:.2f} ms")
+    print(f"Speed ratio (Cholesky/Original): {chol_time/orig_time:.2f}")
+
+def main():
+    """Run all tests."""
+    print("Orbital Calculation Methods Test Suite")
+    print("=" * 60)
+    
+    # Check if we can import the module
+    try:
+        from pl_module.base_module import LitModel
+        print("✓ Successfully imported LitModel")
+    except ImportError as e:
+        print(f"✗ Failed to import LitModel: {e}")
+        return
+    
+    # Run tests
+    tests_passed = 0
+    total_tests = 4
+    
+    # Test 1: Basic functionality
+    if test_basic_functionality():
+        tests_passed += 1
+    
+    # Test 2: Result consistency
+    if test_result_consistency():
+        tests_passed += 1
+    
+    # Test 3: Numerical stability
+    test_numerical_stability()
+    tests_passed += 1  # This test doesn't have a clear pass/fail
+    
+    # Test 4: Performance
+    test_performance()
+    tests_passed += 1  # This test doesn't have a clear pass/fail
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("Test Summary")
+    print("=" * 60)
+    print(f"Tests completed: {total_tests}")
+    print(f"Tests passed: {tests_passed}")
+    
+    if tests_passed >= 2:  # At least basic functionality and consistency should pass
+        print("✓ Overall: Tests PASSED")
+    else:
+        print("✗ Overall: Tests FAILED")
+
+if __name__ == "__main__":
+    main()

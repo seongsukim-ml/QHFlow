@@ -95,7 +95,7 @@ def get_dataset_path(root_path: str, dataset_name: str):
 
 def log_dataset_info(dataset, train_dataset, valid_dataset, test_dataset):
     """Log dataset information."""
-    logger.info(f"Dataset size: {len(dataset)}")
-    logger.info(f"Train size: {len(train_dataset)}")
-    logger.info(f"Validation size: {len(valid_dataset)}")
-    logger.info(f"Test size: {len(test_dataset)}")
+    logger.info(f"Dataset size:      {len(dataset):>8}")
+    logger.info(f"Train size:        {len(train_dataset):>8} ({len(train_dataset) / len(dataset):.2%})")
+    logger.info(f"Validation size:   {len(valid_dataset):>8} ({len(valid_dataset) / len(dataset):.2%})")    
+    logger.info(f"Test size:         {len(test_dataset):>8} ({len(test_dataset) / len(dataset):.2%})")

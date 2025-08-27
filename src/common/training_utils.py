@@ -19,12 +19,13 @@ def setup_callbacks(conf: DictConfig, output_dir: Path):
     # Model checkpoint callback
     checkpoint_callback = ModelCheckpoint(
         dirpath=output_dir / "checkpoints",
-        filename="weights",
+        filename="weights-{epoch:02d}-{val/loss:.2f}",
         monitor=conf.get("monitor", "val/loss"),
         mode=conf.get("monitor_mode", "min"),
         save_top_k=conf.get("save_top_k", 1),
         save_last=True,
     )
+    checkpoint_callback.CHECKPOINT_EQUALS_CHAR = "#"
     callbacks.append(checkpoint_callback)
     
     # Learning rate monitor

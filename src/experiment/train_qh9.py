@@ -14,6 +14,7 @@ from common.qh9_utils import (
     create_inference_loader
 )
 from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
+from common.data_utils import log_dataset_info
 
 # Setup paths and import models
 setup_paths()
@@ -50,11 +51,14 @@ def main(conf):
     root_path = get_root_path()
     dataset = load_qh9_dataset(conf, root_path)
     
+    
     # Create data loaders
     train_loader, val_loader, test_loader = create_qh9_data_loaders(dataset, conf)
+    train_dataset = train_loader.dataset
+    val_dataset = val_loader.dataset
+    test_dataset = test_loader.dataset
     
     # Log dataset information
-    from common.data_utils import log_dataset_info
     log_dataset_info(dataset, train_loader.dataset, val_loader.dataset, test_loader.dataset)
 
     # Initialize the LightningModule
@@ -91,10 +95,6 @@ def main(conf):
         # Start training/testing
         _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf, output_dir)
 
-    elif mode == "eval":
-        _run_qh9_evaluation(conf, pl_model_cls, test_dataset, output_dir)
-
-
 def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf, output_dir):
     """Run QH9 training or testing based on mode."""
     
@@ -126,65 +126,6 @@ def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loa
         
         logger.info(f"{lit_model.test_mode}...")
         trainer.test(lit_model, inf_loader, ckpt_path=ckpt_path)
-
-
-def _run_qh9_evaluation(conf, pl_model_cls, test_dataset, output_dir):
-    """Run QH9 evaluation mode."""
-    import torch
-    from torch_geometric.loader import DataLoader
-
-    # Find best checkpoint
-    ckpt_path = output_dir / conf.wandb.project
-    ckpt_path_list = list(ckpt_path.glob("**/*.ckpt"))
-    ckpt_path_list = [path for path in ckpt_path_list if "best" in path.stem]
-    ckpt_path_list = sorted(ckpt_path_list, key=lambda x: int(x.stem.split("=")[1]))
-    
-    if len(ckpt_path_list) == 0:
-        ckpt_path = None
-    else:
-        ckpt_path = ckpt_path_list[-1]
-    
-    logger.info(f"Checkpoint path: {ckpt_path}")
-
-    # Create evaluation data loader
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=conf.dataset.num_workers,
-        pin_memory=conf.dataset.pin_memory,
-    )
-
-    lit_model = pl_model_cls.load_from_checkpoint(ckpt_path, conf=conf)
-    logger.info("Model loaded")
-    
-    logger.info("Testing...")
-    default_type = torch.float64 if conf.data_type == "float64" else torch.float32
-    errors, h_output = lit_model.test_over_dataset_qh9(test_loader, default_type)
-    
-    msg = f"dataset {conf.dataset.dataset_name}: {errors.get('total_items')} :"
-    for key in errors.keys():
-        if key in [
-            "hamiltonian",
-            "orbital_energies",
-            "non_diagonal_hamiltonian",
-            "diagonal_hamiltonian",
-        ]:
-            msg += f"{key}: {errors[key]*1e6:.3f}(10^-6), "
-        elif key == "orbital_coefficients":
-            msg += f"{key}: {errors[key]*1e2:.4f}(10^-2)"
-        elif key == "total_items":
-            msg += f"{key}: {errors[key]:d}, "
-        else:
-            msg += f"{key}: {errors[key]:.8f}, "
-    
-    logger.info(msg)
-    output_dir_name = "output"
-    os.makedirs(output_dir / output_dir_name, exist_ok=True)
-    with open(output_dir / output_dir_name / "results.txt", "w") as f:
-        f.write(msg)
-    torch.save(h_output, output_dir / output_dir_name / "h_output.pt")
-
 
 if __name__ == "__main__":
     main()

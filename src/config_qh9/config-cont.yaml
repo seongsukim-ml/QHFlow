@@ -36,13 +36,11 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_qh9"
+  project: "DFT-hamiltonian_qh9_v2"
   run_name: ${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}
   run_id: Null
-  tags: ["qh9", "base", "cont", "v3"]
+  tags: ["qh9"]
   # resume: must
 
-# resume  
-continune_ckpt: ''
-# inference
-model_ckpt: ''
+# resume / inference (inference should be copied or it will be overwritten when training)
+ckpt: ''

@@ -32,7 +32,7 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_V2"
+  project: "DFT-hamiltonian_md17_v2"
   # run_name: ${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
   run_name: ${model.version}${prefix}-${dataset.dataset_name}
   run_id: ''
@@ -40,10 +40,8 @@ wandb:
   tags: []
   # resume: must
 
-# resume  
-continune_ckpt: ''
-# inference
-model_ckpt: ''
+# resume / inference (inference should be copied or it will be overwritten when training)
+ckpt: ''
 
 flow:
   batch_mul : 1

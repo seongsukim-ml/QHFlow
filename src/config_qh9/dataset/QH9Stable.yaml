@@ -6,7 +6,9 @@ split: random  #[random, size_ood]
 batch_size: 32
 train_batch_size: ${dataset.batch_size}
 valid_batch_size: ${dataset.batch_size}
-test_batch_size: 1
+test_batch_size: ${dataset.batch_size}
+# test_batch_size: 1
+
 
 learning_rate: 1e-3
 validation_interval: 1

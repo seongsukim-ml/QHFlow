@@ -24,4 +24,5 @@ src/timer.dat
 !/ckpts/README.md
 
 debug_outputs/
-.cursorrc
+.cursorrc
+/.cursor

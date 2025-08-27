@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 
 def get_checkpoint_path(conf: DictConfig, output_dir: Path):
     """Get checkpoint path from configuration or find the best checkpoint."""
-    ckpt_path = conf.get("continune_ckpt", "")
+    ckpt_path = conf.get("ckpt", "")
+
     if ckpt_path == "":
         ckpt_path = None
     
     logger.info(f"ckpt_path: {ckpt_path if ckpt_path is not None else 'None'}")
     
-    if ckpt_path is None or ckpt_path == "":
+    if ckpt_path is None:
         ckpt_path = _find_best_checkpoint(conf, output_dir)
     
     return ckpt_path
@@ -48,7 +49,7 @@ def _find_best_checkpoint(conf: DictConfig, output_dir: Path):
         
         if len(ckpt_path_list) > 0:
             ckpt_path_list = sorted(
-                ckpt_path_list, key=lambda x: int(x.stem.split("=")[1])
+                ckpt_path_list, key=lambda x: int(x.stem.split("-")[1].split("#")[1])
             )
             return ckpt_path_list[-1]
     

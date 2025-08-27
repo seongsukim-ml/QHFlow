@@ -19,8 +19,10 @@ import numpy as np
 # fmt : off
 def get_total_cycles(envs):
     setattr(envs["mf"], "total_cycle", envs["cycle"])
+    setattr(envs["mf"], "_dm_last", envs["dm"])
+
     if envs["mf"].gt is not None:
-        print(np.mean(np.abs(envs["fock"] - envs["mf"].gt)), envs["mf"].error_level)
+        # print(np.mean(np.abs(envs["fock"] - envs["mf"].gt)), envs["mf"].error_level)
         if (
             np.mean(np.abs(envs["fock"] - envs["mf"].gt)) < envs["mf"].error_level
             and envs["mf"].achieve_error_flag is False
@@ -28,25 +30,23 @@ def get_total_cycles(envs):
             setattr(envs["mf"], "achieve_error_flag", True)
             setattr(envs["mf"], "achieve_error_cycle", envs["cycle"])
     if envs["mf"].e_tot_gt is not None:
-        print(np.abs(envs["e_tot"] - envs["mf"].e_tot_gt), envs["mf"].e_tot_error_level)
+        # print(np.abs(envs["e_tot"] - envs["mf"].e_tot_gt), envs["mf"].e_tot_error_level)
         if (
             np.abs(envs["e_tot"] - envs["mf"].e_tot_gt) < envs["mf"].e_tot_error_level
             and envs["mf"].e_tot_achieve_error_flag is False
         ):
             setattr(envs["mf"], "e_tot_achieve_error_flag", True)
             setattr(envs["mf"], "e_tot_achieve_error_cycle", envs["cycle"])
-            print(envs["mf"].e_tot_achieve_error_cycle)
-    setattr(envs["mf"], "total_cycle", envs["cycle"])
-    setattr(envs["mf"], "_dm_last", envs["dm"])
-    print(envs["cycle"], envs["e_tot"])
-    info = {
-        "fock": envs["fock"],
-        "dm": envs["dm"],
-        "mo_coeff": envs["mo_coeff"],
-        "mo_energy": envs["mo_energy"],
-        "e_tot": envs["e_tot"],
-    }
-    getattr(envs["mf"], "info").append(info)
+            # print(envs["mf"].e_tot_achieve_error_cycle)
+    # print(envs["cycle"], envs["e_tot"])
+    # info = {
+    #     "fock": envs["fock"],
+    #     "dm": envs["dm"],
+    #     "mo_coeff": envs["mo_coeff"],
+    #     "mo_energy": envs["mo_energy"],
+    #     "e_tot": envs["e_tot"],
+    # }
+    # getattr(envs["mf"], "info").append(info)
 
 
 # fmt : on

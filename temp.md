@@ -1,3 +1,13 @@
+conda activate qhflow
+cd ~/25DFT/QHFlow/src
+
+CUDA_VISIBLE_DEVICES=4 python -m experiment.train_md17 model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=4 python -m experiment.train_md17 dataset=ethanol model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=5 python -m experiment.train_md17 dataset=malondialdehyde model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=6 python -m experiment.train_md17 dataset=uracil model=QHFlow wandb.mode="online"
+
+
+
 1. Using uv to make the folder
 2. Upload the pre-trained weights
 3. Upload the sample dataset for test

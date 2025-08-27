@@ -22,7 +22,7 @@ end_lr: 1e-7
 scheduler_power: 3.5
 
 qh9: True
-pl_type: flow_qh9
+pl_type: flow
 
 data_type: float32
 
@@ -36,16 +36,15 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_qh9"
+  project: "DFT-hamiltonian_qh9_v2"
   run_name: ${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}-US_${model.use_block_S}
   run_id: Null
-  tags: ["qh9","flow", "cont", "v3"]
+  tags: ["qh9","flow"]
   # resume: must
 
-# resume  
-continune_ckpt: Null
-# inference
-model_ckpt: ''
+# resume / inference (inference should be copied or it will be overwritten when training)
+ckpt: ''
+
 partial_val: 0.25
 seed: 0
 
