@@ -65,6 +65,8 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
         "enable_progress_bar": conf.get("enable_progress_bar", True),
         "enable_checkpointing": conf.get("enable_checkpointing", True),
         "log_every_n_steps": conf.get("log_every_n_steps", 50),
+        "strategy": conf.get("strategy", "auto"), # "ddp"
+        "num_nodes": conf.get("num_nodes", 1),
     }
     
     # Add gradient clipping if specified
