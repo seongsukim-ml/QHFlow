@@ -457,7 +457,7 @@ class LitModel(pl.LightningModule):
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
-                    f"test_qh9/{key}",
+                    f"test_qh9/sample_{key}",
                     metrics[key],
                     on_step=True,
                     on_epoch=True,
@@ -469,7 +469,7 @@ class LitModel(pl.LightningModule):
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
-                    f"test/{key}",
+                    f"test/sample_{key}",
                     metrics[key],
                     on_step=True,
                     on_epoch=True,
@@ -514,7 +514,7 @@ class LitModel(pl.LightningModule):
                 metrics = self.metric(outputs, batch)
                 for key in metrics.keys():
                     self.log(
-                        f"pred/{key}",
+                        f"pred/sample_{key}",
                         metrics[key],
                         on_step=True,
                         on_epoch=True,
@@ -526,7 +526,7 @@ class LitModel(pl.LightningModule):
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
-                    f"pred/{key}",
+                    f"pred/sample_{key}",
                     metrics[key],
                     on_step=True,
                     on_epoch=True,

@@ -1749,7 +1749,7 @@ class LitModel_flow(LitModel):
             metrics = self.metric(sample, batch_one)
             for key in metrics.keys():
                 self.log(
-                    f"{prefix}/{key}{post_fix}",
+                    f"{prefix}/sample_{key}{post_fix}",
                     metrics[key],
                     on_step=True,
                     on_epoch=True,
@@ -1781,7 +1781,7 @@ class LitModel_flow(LitModel):
                 metrics = self._metric_qh9(sample, batch_one)
                 for key in metrics.keys():
                     self.log(
-                        f"{prefix}/{key}{post_fix}",
+                        f"{prefix}/sample_{key}{post_fix}",
                         metrics[key],
                         on_step=True,
                         on_epoch=True,
