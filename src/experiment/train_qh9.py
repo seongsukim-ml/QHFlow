@@ -13,7 +13,8 @@ from common.qh9_utils import (
     load_qh9_dataset, create_qh9_data_loaders, setup_warmup_training,
     create_inference_loader
 )
-from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
+from common.checkpoint_utils import get_checkpoint_path, setup_wandb_logger
+from common.training_utils import setup_callbacks, setup_trainer, log_training_config
 from common.data_utils import log_dataset_info
 
 # Setup paths and import models
@@ -77,7 +78,6 @@ def main(conf):
         return
     if mode in ["train", "test", "test-mul", "predict", "inference", "eval"]:
         # Import checkpoint utilities
-        from common.checkpoint_utils import get_checkpoint_path, setup_wandb_logger
         
         # Get checkpoint path
         ckpt_path = get_checkpoint_path(conf, output_dir)

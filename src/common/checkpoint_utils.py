@@ -28,7 +28,6 @@ def get_checkpoint_path(conf: DictConfig, output_dir: Path):
 def _find_best_checkpoint(conf: DictConfig, output_dir: Path):
     """Find the best checkpoint from wandb directory."""
     run_id = None
-    
     # Check for latest run
     if (output_dir / "wandb" / "latest-run").exists():
         run_id = [
@@ -36,23 +35,32 @@ def _find_best_checkpoint(conf: DictConfig, output_dir: Path):
             for file in (output_dir / "wandb" / "latest-run").iterdir()
             if "wandb" in file.name
         ][0][4:12]
+        logger.info(f"run_id: {run_id}")
     elif conf.wandb.run_id is not None and conf.wandb.run_id != "":
         run_id = conf.wandb.run_id
 
     if run_id is not None:
-        ckpt_path = output_dir / conf.wandb.project / run_id / "checkpoints"
+        ckpt_path = output_dir / "checkpoints"
         ckpt_path_list = list(ckpt_path.glob("*.ckpt"))
-        ckpt_path_list = [
-            path for path in ckpt_path_list if "best" in path.stem
-        ]
-        logger.info(f"Found {len(ckpt_path_list)} checkpoints")
-        
-        if len(ckpt_path_list) > 0:
-            ckpt_path_list = sorted(
-                ckpt_path_list, key=lambda x: int(x.stem.split("-")[1].split("#")[1])
-            )
-            return ckpt_path_list[-1]
-    
+        if conf.get("last_ckpt", False):
+            ckpt_path_last = list(ckpt_path.glob("last.ckpt"))
+            logger.info(f"Using last checkpoint: {ckpt_path_last[0]}")
+            return ckpt_path_last[0]
+        else:
+            ckpt_path_list = [
+                path for path in ckpt_path_list if "weights" in path.stem
+            ]
+            logger.info(f"Found {len(ckpt_path_list)} checkpoints")
+            if len(ckpt_path_list) > 0:
+                try:
+                    ckpt_path_list = sorted(
+                        ckpt_path_list, key=lambda x: int(x.stem.split("-")[1].split("#")[1]), reverse=True 
+                    )
+                    return ckpt_path_list[0]
+                except:
+                    logger.info("Error in finding the best checkpoint")
+                    return None
+    logger.info("No checkpoints found, using None")
     return None
 
 
