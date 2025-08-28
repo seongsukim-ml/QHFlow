@@ -1,3 +1,20 @@
+"""
+QH9 Dataset Module for Quantum Chemistry Calculations
+
+This module provides optimized dataset classes for QH9Stable and QH9Dynamic datasets,
+which contain molecular geometries with precomputed quantum chemistry properties.
+The datasets are optimized for efficient data loading using LMDB storage.
+
+Classes:
+    QH9Stable: Dataset for stable molecular geometries
+    QH9Dynamic: Dataset for dynamic molecular conformations
+
+Functions:
+    matrix_transform: Transform matrices according to orbital conventions
+    cal_orbital_and_energies: Calculate orbital energies and coefficients
+    calc_ovlp_and_ham_init: Calculate overlap and initial Hamiltonian matrices
+"""
+
 import os
 import lmdb
 import random
@@ -17,12 +34,15 @@ import concurrent.futures
 
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index
 
+# Conversion factor from Bohr to Angstrom
 BOHR2ANG = 1.8897259886
 
+# Google Drive link for dataset downloads
 GoogleDriveLink = (
     "https://drive.google.com/drive/u/0/folders/1LXTC8uaOQzmb76FsuGfwSocAbK5Hshfj"
 )
 
+# Orbital convention mappings for different basis sets
 convention_dict = {
     "pyscf_631G": Namespace(
         atom_to_orbitals_map={1: "ss", 6: "ssspp", 7: "ssspp", 8: "ssspp", 9: "ssspp"},
@@ -74,6 +94,7 @@ convention_dict = {
     ),
 }
 
+# Atomic reference energies for different properties
 atomrefs = {
     6: [0.0, 0.0, 0.0, 0.0, 0.0],
     7: [-13.61312172, -1029.86312267, -1485.30251237, -2042.61123593, -2713.48485589],
@@ -83,8 +104,11 @@ atomrefs = {
     11: [0.0, 0.0, 0.0, 0.0, 0.0],
 }
 
-HAR2EV = 27.211386246
-KCALMOL2EV = 0.04336414
+# Conversion factors for energy units
+HAR2EV = 27.211386246  # Hartree to electron volts
+KCALMOL2EV = 0.04336414  # kcal/mol to electron volts
+
+# Unit conversion tensor for different properties
 conversion = torch.tensor(
     [
         1.0,
@@ -109,6 +133,7 @@ conversion = torch.tensor(
     ]
 )
 
+# Tensor version of atomic reference energies
 atomrefs_tensor = torch.zeros(5, 19)
 atomrefs_tensor[:, 7] = torch.tensor(atomrefs[7])
 atomrefs_tensor[:, 8] = torch.tensor(atomrefs[8])
@@ -117,6 +142,17 @@ atomrefs_tensor[:, 10] = torch.tensor(atomrefs[10])
 
 
 def matrix_transform(matrices, atoms, convention="pyscf_631G"):
+    """
+    Transform matrices according to orbital convention.
+    
+    Args:
+        matrices: Input matrices to transform
+        atoms: Atomic numbers for the molecule
+        convention: Orbital convention to use ('pyscf_631G', 'pyscf_def2svp', 'back2pyscf')
+    
+    Returns:
+        Transformed matrices according to the specified convention
+    """
     conv = convention_dict[convention]
     orbitals = ""
     orbitals_order = []
@@ -147,6 +183,21 @@ def matrix_transform(matrices, atoms, convention="pyscf_631G"):
 
 
 class QH9Stable(InMemoryDataset):
+    """
+    QH9Stable dataset for quantum chemistry calculations.
+    
+    This dataset contains stable molecular geometries with precomputed 
+    Hamiltonian matrices, overlap matrices, and initial Hamiltonian matrices.
+    The dataset supports both random and size-based out-of-distribution splits.
+    
+    Attributes:
+        url (str): Google Drive URL for dataset download
+        folder (str): Local folder path for dataset storage
+        split (str): Dataset split type ('random' or 'size_ood')
+        cal_orbital_and_energies (bool): Whether to calculate orbital energies
+        _db_env: LMDB environment for optimized data access
+        _lmdb_path: Cached path to LMDB database
+    """
     url = "https://drive.google.com/file/d/1LcEJGhB8VUGkuyb0oQ_9ANJdSkky9xMS/view?usp=sharing"
 
     def __init__(
@@ -167,6 +218,10 @@ class QH9Stable(InMemoryDataset):
         self.full_orbitals = 14
         self.orbital_mask = {}
         self.cal_orbital_and_energies = cal_orbital_and_energies
+        
+        # Variables for LMDB connection optimization
+        self._db_env = None
+        self._lmdb_path = None
 
         idx_1s_2s_2p = torch.tensor([0, 1, 3, 4, 5])
         orbital_mask_line1 = idx_1s_2s_2p
@@ -233,7 +288,15 @@ class QH9Stable(InMemoryDataset):
         print("Merging lmdb databases done.")
 
     def process_row(self, row):
-        # Process a single row: extract data, compute values and prepare the dictionary.
+        """
+        Process a single row from the database.
+        
+        Args:
+            row: Database row containing molecular data
+            
+        Returns:
+            tuple: (key, data_dict) for LMDB storage
+        """
         atoms = np.frombuffer(row[2], np.int32)
         pos = np.frombuffer(row[3], np.float64)
         ovlp, init_ham = calc_ovlp_and_ham_init(atoms, pos.reshape(-1, 3))
@@ -483,8 +546,6 @@ class QH9Stable(InMemoryDataset):
             non_diagonal_hamiltonian_mask=non_diagonal_hamiltonian_mask,
             diagonal_init_ham=diagonal_init_ham,
             non_diagonal_init_ham=non_diagonal_init_ham,
-            # diagonal_init_ham_mask=diagonal_init_ham_mask,
-            # non_diagonal_init_ham_mask=non_diagonal_init_ham_mask,
             diagonal_overlap=diagonal_overlap,
             non_diagonal_overlap=non_diagonal_overlap,
             overlap=torch.tensor(ovlp, dtype=torch.float64).flatten(),  # pyscf
@@ -503,15 +564,50 @@ class QH9Stable(InMemoryDataset):
             data.ovlp = ovlp
         return data
 
+    def _get_db_env(self):
+        """Lazy initialization and reuse of LMDB environment."""
+        if self._db_env is None:
+            self._lmdb_path = os.path.join(self.processed_dir, "QH9Stable.lmdb")
+            self._db_env = lmdb.open(
+                self._lmdb_path,
+                readonly=True,
+                lock=False,
+            )
+        return self._db_env
+
+    def _close_db_env(self):
+        """Safely close LMDB environment."""
+        if self._db_env is not None:
+            self._db_env.close()
+            self._db_env = None
+
+    def __enter__(self):
+        """Context manager entry: Initialize LMDB environment."""
+        self._get_db_env()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit: Clean up LMDB environment."""
+        self._close_db_env()
+
+    def __del__(self):
+        """Destructor: Clean up LMDB environment."""
+        self._close_db_env()
+
     def get(self, idx):
-        db_env = lmdb.open(
-            os.path.join(self.processed_dir, "QH9Stable.lmdb"),
-            readonly=True,
-            lock=False,
-        )
+        """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
+        db_env = self._get_db_env()
         with db_env.begin() as txn:
-            data_dict = txn.get(int(idx).to_bytes(length=4, byteorder="big"))
+            # Pre-create key for reuse
+            key = int(idx).to_bytes(length=4, byteorder="big")
+            data_dict = txn.get(key)
+            
+            if data_dict is None:
+                raise KeyError(f"Index {idx} not found in database")
+                
             data_dict = pickle.loads(data_dict)
+            
+            # Process data extraction and transformation in one step
             _, num_nodes, atoms, pos, Ham, ovlp, init_ham = (
                 data_dict["id"],
                 data_dict["num_nodes"],
@@ -521,6 +617,8 @@ class QH9Stable(InMemoryDataset):
                 np.frombuffer(data_dict["ovlp"], np.float64),
                 np.frombuffer(data_dict["init_ham"], np.float64),
             )
+            
+            # Memory-efficient reshape operation
             pos = pos.reshape(num_nodes, 3)
             num_orbitals = sum([5 if atom <= 2 else 14 for atom in atoms])
             Ham = Ham.reshape(num_orbitals, num_orbitals)
@@ -528,29 +626,27 @@ class QH9Stable(InMemoryDataset):
             ovlp = ovlp.reshape(num_orbitals, num_orbitals)
 
             data = self.get_mol(atoms, pos, Ham, ovlp, init_ham)
-        db_env.close()
         return data
 
-    # def calc_ovlp_and_ham_init(self, atoms, pos, init="minao"):
-    #     mol = gto.Mole()
-    #     t = [[atoms[atom_idx], pos[atom_idx]] for atom_idx in range(len(atoms))]
-    #     mol.build(verbose=0, atom=t, basis="def2svp", unit="ang")
 
-    #     ovlp = mol.intor("int1e_ovlp")
-    #     mf_hf = dft.RKS(mol)
-    #     mf_hf.xc = "b3lyp"
-    #     mf_hf.basis = "def2svp"
-    #     if init == "minao":
-    #         init_dm = mf_hf.init_guess_by_minao()
-    #     elif init == "1e":
-    #         init_dm = mf_hf.init_guess_by_1e()
-    #     # init_ham = scf.hf.get_fock(mf_hf, dm=init_dm)
-    #     init_ham = mf_hf.get_fock(dm=init_dm)
-
-    #     return ovlp, init_ham
 
 
 class QH9Dynamic(InMemoryDataset):
+    """
+    QH9Dynamic dataset for quantum chemistry calculations with dynamic geometries.
+    
+    This dataset contains molecular geometries with dynamic conformations and 
+    precomputed Hamiltonian matrices, overlap matrices, and initial Hamiltonian matrices.
+    The dataset supports both geometry-wise and molecule-wise splits.
+    
+    Attributes:
+        url (dict): Google Drive URLs for different dataset versions
+        version (str): Dataset version ('100k' or '300k')
+        split (str): Dataset split type ('geometry' or 'mol')
+        cal_orbital_and_energies (bool): Whether to calculate orbital energies
+        _db_env: LMDB environment for optimized data access
+        _lmdb_path: Cached path to LMDB database
+    """
     url = {
         "100k": "https://drive.google.com/file/d/1SNWk0GD6Nt96qNAJJU2uedwWDQ4bbB1w/view?usp=sharing",
         "300k": "https://drive.google.com/file/d/1sbf-sFhh3ZmhXgTcN2ke_la39MaG0Yho/view?usp=sharing",
@@ -589,6 +685,11 @@ class QH9Dynamic(InMemoryDataset):
         self.full_orbitals = 14
         self.orbital_mask = {}
         self.cal_orbital_and_energies = cal_orbital_and_energies
+        
+        # Variables for LMDB connection optimization
+        self._db_env = None
+        self._lmdb_path = None
+        
         idx_1s_2s_2p = torch.tensor([0, 1, 3, 4, 5])
         orbital_mask_line1 = idx_1s_2s_2p
         orbital_mask_line2 = torch.arange(self.full_orbitals)
@@ -650,8 +751,16 @@ class QH9Dynamic(InMemoryDataset):
             return ["processed_QH9Dynamic_mol.pt", "QH9Dynamic.lmdb/data.mdb"]
 
     def process_row(self, data_chunk_idx):
+        """
+        Process a single row from the database chunk.
+        
+        Args:
+            data_chunk_idx: Tuple of (row, index) from database chunk
+            
+        Returns:
+            tuple: (key, data_dict) for LMDB storage
+        """
         row, indice = data_chunk_idx
-        # Process a single row: extract data, compute values and prepare the dictionary.
         atoms = np.frombuffer(row[3], np.int32)
         pos = np.frombuffer(row[4], np.float64) / BOHR2ANG
         ovlp, init_ham = calc_ovlp_and_ham_init(atoms, pos.reshape(-1, 3))
@@ -998,15 +1107,50 @@ class QH9Dynamic(InMemoryDataset):
 
         return data
 
+    def _get_db_env(self):
+        """Lazy initialization and reuse of LMDB environment."""
+        if self._db_env is None:
+            self._lmdb_path = os.path.join(self.processed_dir, "QH9Dynamic.lmdb")
+            self._db_env = lmdb.open(
+                self._lmdb_path,
+                readonly=True,
+                lock=False,
+            )
+        return self._db_env
+
+    def _close_db_env(self):
+        """Safely close LMDB environment."""
+        if self._db_env is not None:
+            self._db_env.close()
+            self._db_env = None
+
+    def __enter__(self):
+        """Context manager entry: Initialize LMDB environment."""
+        self._get_db_env()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit: Clean up LMDB environment."""
+        self._close_db_env()
+
+    def __del__(self):
+        """Destructor: Clean up LMDB environment."""
+        self._close_db_env()
+
     def get(self, idx):
-        db_env = lmdb.open(
-            os.path.join(self.processed_dir, "QH9Dynamic.lmdb"),
-            readonly=True,
-            lock=False,
-        )
+        """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
+        db_env = self._get_db_env()
         with db_env.begin() as txn:
-            data_dict = txn.get(int(idx).to_bytes(length=4, byteorder="big"))
+            # Pre-generate key for reuse
+            key = int(idx).to_bytes(length=4, byteorder="big")
+            data_dict = txn.get(key)
+            
+            if data_dict is None:
+                raise KeyError(f"Index {idx} not found in database")
+                
             data_dict = pickle.loads(data_dict)
+            
+            # Process data extraction and transformation in one go
             (_, num_nodes, atoms, pos, Ham, ovlp, init_ham) = (
                 data_dict["id"],
                 data_dict["num_nodes"],
@@ -1016,19 +1160,31 @@ class QH9Dynamic(InMemoryDataset):
                 np.frombuffer(data_dict["ovlp"], np.float64),
                 np.frombuffer(data_dict["init_ham"], np.float64),
             )
+            
+            # Memory-efficient reshape operations and unit conversion
             pos = pos.reshape(num_nodes, 3)
-            pos = pos / BOHR2ANG  # transfer the unit back to ang
-            # pos = pos
+            pos = pos / BOHR2ANG  # Convert from Bohr to Angstrom
             num_orbitals = sum([5 if atom <= 2 else 14 for atom in atoms])
             Ham = Ham.reshape(num_orbitals, num_orbitals)
             init_ham = init_ham.reshape(num_orbitals, num_orbitals)
             ovlp = ovlp.reshape(num_orbitals, num_orbitals)
+            
             data = self.get_mol(atoms, pos, Ham, ovlp, init_ham)
-        db_env.close()
         return data
 
 
 def cal_orbital_and_energies(overlap_matrix, full_hamiltonian, EPS=1e-8):
+    """
+    Calculate orbital energies and coefficients from overlap and Hamiltonian matrices.
+    
+    Args:
+        overlap_matrix: Overlap matrix (S)
+        full_hamiltonian: Full Hamiltonian matrix (H)
+        EPS: Small value to avoid numerical issues with eigenvalues
+    
+    Returns:
+        tuple: (orbital_energies, orbital_coefficients)
+    """
     eigvals, eigvecs = torch.linalg.eigh(overlap_matrix)
     eps = EPS * torch.ones_like(eigvals)
     eigvals = torch.where(eigvals > EPS, eigvals, eps)
@@ -1042,23 +1198,21 @@ def cal_orbital_and_energies(overlap_matrix, full_hamiltonian, EPS=1e-8):
     return orbital_energies, orbital_coefficients
 
 
-# def cal_orbital_and_energies(overlap_matrix, full_hamiltonian, EPS=1e-8):
-#     eigvals, eigvecs = np.linalg.eigh(overlap_matrix)
-#     eps = EPS * np.ones_like(eigvals)
-#     eigvals = np.where(eigvals > EPS, eigvals, eps)
-#     frac_overlap = eigvecs / np.sqrt(eigvals)
-#     Fs = frac_overlap.transpose(-1, -2) @ full_hamiltonian @ frac_overlap
 
-#     # Fs = torch.bmm(
-#     #     torch.bmm(frac_overlap.transpose(-1, -2), full_hamiltonian), frac_overlap
-#     # )
-#     orbital_energies, orbital_coefficients = np.linalg.eigh(Fs)
-#     # orbital_coefficients = torch.bmm(frac_overlap, orbital_coefficients)
-#     orbital_coefficients = frac_overlap @ orbital_coefficients
-#     return orbital_energies, orbital_coefficients
 
 
 def calc_ovlp_and_ham_init(atoms, pos, init="minao"):
+    """
+    Calculate overlap matrix and initial Hamiltonian matrix using PySCF.
+    
+    Args:
+        atoms: Atomic numbers for the molecule
+        pos: Atomic positions in Angstrom
+        init: Initial guess method ('minao' or '1e')
+    
+    Returns:
+        tuple: (overlap_matrix, initial_hamiltonian_matrix)
+    """
     mol = gto.Mole()
     if len(pos.shape) == 1:
         pos = pos.reshape(-1, 3)
@@ -1079,34 +1233,7 @@ def calc_ovlp_and_ham_init(atoms, pos, init="minao"):
     return ovlp.astype("float64"), init_ham.astype("float64")
 
 
-# def calc_props(atoms, pos, ham_fin, init="minao"):
-#     mol = gto.Mole()
-#     t = [[atoms[atom_idx], pos[atom_idx]] for atom_idx in range(len(atoms))]
-#     mol.build(verbose=0, atom=t, basis="def2svp", unit="ang")
 
-#     ovlp = mol.intor("int1e_ovlp")
-#     mf_hf = dft.RKS(mol)
-#     mf_hf.xc = "b3lyp"
-#     mf_hf.basis = "def2svp"
-#     if init == "minao":
-#         init_dm = mf_hf.init_guess_by_minao()
-#     elif init == "1e":
-#         init_dm = mf_hf.init_guess_by_1e()
-#     # init_ham = scf.hf.get_fock(mf_hf, dm=init_dm)
-#     init_ham = mf_hf.get_fock(dm=init_dm)
-#     e0, c0 = mf_hf.eig(init_ham, ovlp)
-#     ef, cf = mf_hf.eig(ham_fin, ovlp)
-
-#     res = {
-#         "ovlp": ovlp,
-#         "init_ham": init_ham,
-#         "e0": e0,
-#         "c0": c0,
-#         "ef": ef,
-#         "cf": cf,
-#     }
-
-#     return res
 
 
 if __name__ == "__main__":
@@ -1125,7 +1252,7 @@ if __name__ == "__main__":
     parser.add_argument("--chunk_idx", type=int, default=0)
     parser.add_argument("--prefix", type=str, default="")
     parser.add_argument("--pdb", action="store_true", default=False)
-    # parser.add_argument("--pdb", type=bool, default=False)
+
 
     args = parser.parse_args()
     assert args.name in ["QH9Stable", "QH9Dynamic"]
@@ -1140,7 +1267,7 @@ if __name__ == "__main__":
         )
     elif args.name == "QH9Dynamic":
         assert args.version in ["100k", "300k"]
-        # assert args.split in ["geometry", "mol"]
+
         dataset = QH9Dynamic(
             root=args.root,
             version=args.version,
