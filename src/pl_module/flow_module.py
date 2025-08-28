@@ -1176,7 +1176,7 @@ class LitModel_flow(LitModel):
                 self._log_error(ema_errors, "val_ema")
                 
                 # Conditional sampling evaluation for EMA
-                if self.error_threshold is not None and ema_loss < self.error_threshold:
+                if self.error_threshold is None or ema_loss < self.error_threshold:
                     self._log_sample_metric(
                         batch_one, "val", num_timesteps=self.num_ode_steps_val
                     )
@@ -1195,7 +1195,7 @@ class LitModel_flow(LitModel):
         self._log_error(errors, "val")
         
         # Conditional sampling evaluation
-        if self.error_threshold is not None and loss < self.error_threshold:
+        if self.error_threshold is None or loss < self.error_threshold:
             for n_steps in self.log_n_steps_ODE_val:
                 self._log_sample_metric(batch_one, "val", num_timesteps=n_steps, post_fix=f"_{n_steps}")
             self._log_sample_metric(batch_one, "val", num_timesteps=self.num_ode_steps_val)

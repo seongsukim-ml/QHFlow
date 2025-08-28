@@ -52,7 +52,6 @@ def main(conf):
     root_path = get_root_path()
     dataset = load_qh9_dataset(conf, root_path)
     
-    
     # Create data loaders
     train_loader, val_loader, test_loader = create_qh9_data_loaders(dataset, conf)
     train_dataset = train_loader.dataset

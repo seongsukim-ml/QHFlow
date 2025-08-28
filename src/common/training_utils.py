@@ -4,7 +4,7 @@ Common training utilities for experiments.
 """
 import logging
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from omegaconf import DictConfig
 from pathlib import Path
@@ -66,6 +66,7 @@ def setup_trainer(conf: DictConfig, callbacks, loggers, output_dir: Path):
         "log_every_n_steps": conf.get("log_every_n_steps", 50),
         "num_nodes": conf.get("num_nodes", 1),
         "num_sanity_val_steps": conf.get("num_sanity_val_steps", 2),
+        "profiler": "simple" if conf.get("profiler", "simple") == "simple" else None,
     }
     
     trainer_kwargs["max_steps"] = conf.get("num_training_steps", -1)

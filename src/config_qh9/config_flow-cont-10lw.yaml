@@ -44,6 +44,7 @@ wandb:
 
 # resume / inference (inference should be copied or it will be overwritten when training)
 ckpt: ''
+use_last_ckpt: True
 
 partial_val: 0.25
 seed: 0

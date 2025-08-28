@@ -1,5 +1,6 @@
 import math
 import collections
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -81,7 +82,7 @@ def get_feasible_irrep(irrep_in1, irrep_in2, cutoff_irrep_out, tp_mode="uvu"):
     ]
     return irrep_mid, instructions
 
-
+@compile_mode("trace")
 class NormGate(torch.nn.Module):
     def __init__(self, irrep):
         super(NormGate, self).__init__()
@@ -114,6 +115,7 @@ class NormGate(torch.nn.Module):
         x = torch.cat([gates[:, self.irrep.slices()[0]], gated], dim=-1)
         return x
 
+@compile_mode("trace")
 class ConvLayer(torch.nn.Module):
     def __init__(
         self,
@@ -273,7 +275,7 @@ class InnerProduct(torch.nn.Module):
         out = self.tp(features_1, features_2)
         return out
 
-
+@compile_mode("trace")
 class ConvNetLayer(torch.nn.Module):
     def __init__(
         self,
@@ -288,8 +290,9 @@ class ConvNetLayer(torch.nn.Module):
         edge_wise=False,
     ):
         super(ConvNetLayer, self).__init__()
-        self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
-        self.nonlinear_gates = {1: "ssp", -1: "abs"}
+        # Use torch.jit.Attribute for TorchScript compatibility
+        self.nonlinear_scalars = torch.jit.Attribute({1: "ssp", -1: "tanh"}, Dict[int, str])
+        self.nonlinear_gates = torch.jit.Attribute({1: "ssp", -1: "abs"}, Dict[int, str])
 
         self.irrep_in_node = ensure_irreps(irrep_in_node)
         self.irrep_hidden = ensure_irreps(irrep_hidden)
@@ -322,7 +325,7 @@ class ConvNetLayer(torch.nn.Module):
             x = old_x + x
         return x
 
-
+@compile_mode("trace")
 class PairNetLayer(torch.nn.Module):
     def __init__(
         self,
@@ -338,8 +341,9 @@ class PairNetLayer(torch.nn.Module):
         nonlinear="ssp",
     ):
         super(PairNetLayer, self).__init__()
-        self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
-        self.nonlinear_gates = {1: "ssp", -1: "abs"}
+        # Use torch.jit.Attribute for TorchScript compatibility
+        self.nonlinear_scalars = torch.jit.Attribute({1: "ssp", -1: "tanh"}, Dict[int, str])
+        self.nonlinear_gates = torch.jit.Attribute({1: "ssp", -1: "abs"}, Dict[int, str])
         self.invariant_layers = invariant_layers
         self.invariant_neurons = invariant_neurons
         self.irrep_in_node = ensure_irreps(irrep_in_node)
@@ -492,7 +496,7 @@ class PairNetLayer(torch.nn.Module):
             node_pair = node_pair + node_pair_attr
         return node_pair
 
-
+@compile_mode("trace")
 class SelfNetLayer(torch.nn.Module):
     def __init__(
         self,
@@ -506,8 +510,9 @@ class SelfNetLayer(torch.nn.Module):
         nonlinear="ssp",
     ):
         super(SelfNetLayer, self).__init__()
-        self.nonlinear_scalars = {1: "ssp", -1: "tanh"}
-        self.nonlinear_gates = {1: "ssp", -1: "abs"}
+        # Use torch.jit.Attribute for TorchScript compatibility
+        self.nonlinear_scalars = torch.jit.Attribute({1: "ssp", -1: "tanh"}, Dict[int, str])
+        self.nonlinear_gates = torch.jit.Attribute({1: "ssp", -1: "abs"}, Dict[int, str])
         self.sh_irrep = sh_irrep
         self.irrep_in_node = ensure_irreps(irrep_in_node)
         self.irrep_bottle_hidden = ensure_irreps(irrep_bottle_hidden)
@@ -1942,6 +1947,14 @@ class GraphAttention(torch.nn.Module):
     3. 0e -> Activation -> Inner Product -> (Alpha)
     4. (0e+1e+...) -> (Value)
     """
+    
+    # Class-level type annotations for TorchScript compatibility
+    irreps_node_input: o3.Irreps
+    irreps_node_attr: o3.Irreps
+    irreps_edge_attr: o3.Irreps
+    irreps_node_output: o3.Irreps
+    irreps_pre_attn: o3.Irreps
+    irreps_head: o3.Irreps
 
     def __init__(
         self,
@@ -2167,6 +2180,12 @@ class FeedForwardNetwork(torch.nn.Module):
     """
     Use two (FCTP + Gate)
     """
+    
+    # Class-level type annotations for TorchScript compatibility
+    irreps_node_input: o3.Irreps
+    irreps_node_attr: o3.Irreps
+    irreps_mlp_mid: o3.Irreps
+    irreps_node_output: o3.Irreps
 
     def __init__(
         self,
@@ -2265,6 +2284,15 @@ class TransBlock(torch.nn.Module):
     1. Layer Norm 1 -> GraphAttention -> Layer Norm 2 -> FeedForwardNetwork
     2. Use pre-norm architecture
     """
+    
+    # Class-level type annotations for TorchScript compatibility
+    irreps_node_input: o3.Irreps
+    irreps_node_attr: o3.Irreps
+    irreps_edge_attr: o3.Irreps
+    irreps_node_output: o3.Irreps
+    irreps_pre_attn: o3.Irreps
+    irreps_head: o3.Irreps
+    irreps_mlp_mid: o3.Irreps
 
     def __init__(
         self,
