@@ -20,7 +20,7 @@ import pyscf
 from pyscf import dft
 from common.metric import cal_orbital_and_energies, cal_orbital_and_energies_variable_size_grouped
 
-# ==========================================
+# ==========================================        
 # Constants and Configuration
 # ==========================================
 
@@ -720,6 +720,7 @@ class LitModel(pl.LightningModule):
         non_diagonal_matrix,
         transform=False,
         convention="back2pyscf",
+        dtype=None,
     ):
         """Build final matrix from diagonal and non-diagonal blocks."""
         final_matrix = []
@@ -764,6 +765,8 @@ class LitModel(pl.LightningModule):
                     data.atoms[data.batch == graph_idx],
                     convention,
                 )
+            if dtype is not None:
+                mat_res = mat_res.type(dtype)
             final_matrix.append(mat_res)
         return final_matrix
 
@@ -930,7 +933,7 @@ class LitModel(pl.LightningModule):
                     error_dict[key] = torch.mean(torch.stack(error_list))
                 else:
                     assert outputs[key].dim() == 3, "The shape of outputs must be [batch, total_orbitals, num_occupied_orbitals] or List[Tensor]"
-                    assert target[key].dim() == 3, "The shape of target must be [batch, total_orbitals, num_occupied_orbitals] or List[Tensor]"
+                    assert target[key].dim() == 3,  "The shape of target must be [batch, total_orbitals, num_occupied_orbitals] or List[Tensor]"
                     cosine_similarity = torch.cosine_similarity(outputs[key], target[key], dim=1)
                     error_dict[key] = cosine_similarity.abs().mean()
             elif key in ["diagonal_hamiltonian", "non_diagonal_hamiltonian"]:
@@ -1044,6 +1047,7 @@ class LitModel(pl.LightningModule):
             outputs["hamiltonian_non_diagonal_blocks"],
             transform=True,
             convention="back2pyscf",
+            dtype=torch.float64,
         )
         
         batch.hamiltonian = self.build_final_matrix(
@@ -1052,6 +1056,7 @@ class LitModel(pl.LightningModule):
             batch.non_diagonal_hamiltonian,
             transform=True,
             convention="back2pyscf",
+            dtype=torch.float64,
         )
         
         # Overlap matrix is shared across batch and
@@ -1061,6 +1066,7 @@ class LitModel(pl.LightningModule):
             batch.non_diagonal_overlap,
             transform=True,
             convention="back2pyscf",
+            dtype=torch.float64,
         )
 
         # Calculate orbital properties
@@ -1104,6 +1110,7 @@ class LitModel(pl.LightningModule):
         
         outputs["diagonal_hamiltonian"] = outputs["hamiltonian_diagonal_blocks"]
         outputs["non_diagonal_hamiltonian"] = outputs["hamiltonian_non_diagonal_blocks"]
+
         error_dict = self._metric_calc(outputs, batch, metric_weights)
 
         return error_dict

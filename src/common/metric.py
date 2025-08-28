@@ -167,6 +167,7 @@ def cal_orbital_and_energies_variable_size(overlap_matrices, hamiltonian_matrice
     
     return orbital_energies_list, orbital_coefficients_list
 
+
 def cal_orbital_and_energies_variable_size_grouped(overlap_matrices, hamiltonian_matrices, method="eigh", tol=1e-8):
     """Calculate orbital energies and coefficients using size-based grouping for efficiency.
     
@@ -284,11 +285,11 @@ def _cal_orbital_and_energies_eigh_single(overlap_matrix, full_hamiltonian, tol=
         Uses a tolerance threshold to handle numerically small eigenvalues of the overlap matrix.
     """
     eigvals, eigvecs = torch.linalg.eigh(overlap_matrix)
+    
     eps = tol * torch.ones_like(eigvals)
     eigvals = torch.where(eigvals > tol, eigvals, eps)
-    frac_overlap = eigvecs / torch.sqrt(eigvals).unsqueeze(-1)
-
-    Fs = torch.mm(torch.mm(frac_overlap.t(), full_hamiltonian), frac_overlap)
+    frac_overlap = eigvecs / torch.sqrt(eigvals).unsqueeze(0)
+    Fs = torch.mm(torch.mm(frac_overlap.transpose(-1, -2), full_hamiltonian), frac_overlap)
     orbital_energies, orbital_coefficients = torch.linalg.eigh(Fs)
     orbital_coefficients = torch.mm(frac_overlap, orbital_coefficients)
     return orbital_energies, orbital_coefficients
