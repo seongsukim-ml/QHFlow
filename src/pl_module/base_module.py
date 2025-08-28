@@ -788,9 +788,7 @@ class LitModel(pl.LightningModule):
         
         # Pre-compute orbital energies and coefficients if needed
         if "waloss" in loss_weights.keys():
-            energy, orb = LitModel.cal_orbital_and_energies(
-                target.overlap, target.hamiltonian
-            )
+            energy, orb = cal_orbital_and_energies(target.overlap, target.hamiltonian)
             target.orbital_energies = torch.diag_embed(energy).to(
                 target.hamiltonian.device
             )
@@ -882,20 +880,19 @@ class LitModel(pl.LightningModule):
 
                 error_dict[key + "_mae"] = mae
                 error_dict[key + "_rmse"] = torch.sqrt(mse)
-                error_dict[key + "_diagonal_mae"] = (
-                    mae_diagonal / count_sum_diagonal
-                ).mean()
-                error_dict[key + "_non_diagonal_mae"] = (
-                    mae_non_diagonal / count_sum_non_diagonal
-                ).mean()
+                error_dict[key + "_diagonal_mae"] = (mae_diagonal / count_sum_diagonal).mean()
+                error_dict[key + "_non_diagonal_mae"] = (mae_non_diagonal / count_sum_non_diagonal).mean()
 
                 loss = mae + mse
                 if loss.isnan():
-                    logger.error(f"loss is nan for {key}")
-                    loss = torch.tensor(0.0).to(loss.device)
-                    loss.requires_grad = True
+                    if mae.isnan():
+                        logger.error(f"MAE is NaN - mae_diagonal: {mae_diagonal}, mae_non_diagonal: {mae_non_diagonal}")
+                    if mse.isnan():
+                        logger.error(f"MSE is NaN - mse_diagonal: {mse_diagonal}, mse_non_diagonal: {mse_non_diagonal}")
+                    loss = torch.tensor(1e-8).to(loss.device).requires_grad_(True)
+                
+                error_dict[key + "_loss"] = loss
 
-                error_dict[key] = loss
                 if "loss" in error_dict.keys():
                     error_dict["loss"] = error_dict["loss"] + loss_weights[key] * loss
                 else:
@@ -937,7 +934,7 @@ class LitModel(pl.LightningModule):
                     cosine_similarity = torch.cosine_similarity(outputs[key], target[key], dim=1)
                     error_dict[key] = cosine_similarity.abs().mean()
             elif key in ["diagonal_hamiltonian", "non_diagonal_hamiltonian"]:
-                """ Metric of diagonal and non-diagonal blocks needs to be tested """
+                """ Metric of diagonal and non-diagonal blocks needs to be tested (Not reported in the paper) """
                 diff_blocks = outputs[key] - target[key]
                 mae_blocks = torch.sum(
                     torch.abs(diff_blocks) * target[f"{key}_mask"], dim=[1, 2]

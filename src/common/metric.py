@@ -294,6 +294,7 @@ def _cal_orbital_and_energies_eigh_single(overlap_matrix, full_hamiltonian, tol=
     orbital_coefficients = torch.mm(frac_overlap, orbital_coefficients)
     return orbital_energies, orbital_coefficients
 
+# TODO: check if this is correct
 def _cal_orbital_and_energies_cholesky_single(overlap_matrix, full_hamiltonian):
     """Calculate orbital energies and coefficients using Cholesky decomposition for single matrices.
     

@@ -51,13 +51,13 @@ DEFAULT_NUM_ODE_STEPS_VAL = 3  # Default ODE integration steps for validation
 DEFAULT_NUM_ODE_STEPS_QH9 = 3  # Default ODE steps for QH9 dataset (typically faster)
 
 # Noise and initialization parameters
-DEFAULT_INIT_GAUSS = False  # Whether to use Gaussian noise initialization
+DEFAULT_INIT_GAUSS = True  # Whether to use prior distribution
 DEFAULT_ERROR_THRESHOLD = 1e-5  # Error threshold for conditional logging
-DEFAULT_USE_MSE_AND_MAE = False  # Whether to use both MSE and MAE in loss
+DEFAULT_USE_MSE_AND_MAE = True  # Whether to use both MSE and MAE in loss
 DEFAULT_INIT_GAUSS_CENTER = False  # Whether to center Gaussian noise around initial Hamiltonian
 DEFAULT_USE_RES_TARGET = True  # Whether to predict residual (H - H_init) or full H
 DEFAULT_USE_CORRUPT_MUL = False  # Whether to use corruption multiplication strategy
-DEFAULT_SIGMA = 0.05  # Standard deviation for noise initialization
+DEFAULT_SIGMA = 1.00  # Standard deviation for noise initialization
 DEFAULT_SAMPLE_RANDOM = True  # Whether to sample random initial states during inference
 
 # Initialization type options: "gauss"(="gaussian"),"so3" (rotate gaussian matrix), "expand", "expand_sym"
@@ -223,8 +223,10 @@ class LitModel_flow(LitModel):
         # Inference and parameters
         self.test_mul = conf.get("test_mul", DEFAULT_TEST_MUL) # Used for test-mul mode
         self.save_pred = conf.get("save_pred", DEFAULT_SAVE_PRED)
-        self.log_n_steps_ODE = conf.get("log_n_steps_ODE", [1,2])
-        assert type(self.log_n_steps_ODE) in [list, tuple, set, None]
+        self.log_n_steps_ODE_test = conf.get("log_n_steps_ODE_test", [1,2])
+        self.log_n_steps_ODE_val = conf.get("log_n_steps_ODE_val", [1])
+        assert type(self.log_n_steps_ODE_test) in [list, tuple, set, None]
+        assert type(self.log_n_steps_ODE_val) in [list, tuple, set, None]
         
         # Setup convention dictionary
         self.convention_dict = convention_dict
@@ -1174,8 +1176,8 @@ class LitModel_flow(LitModel):
                 self._log_error(ema_errors, "val_ema")
                 
                 # Conditional sampling evaluation for EMA
-                if ema_loss < self.error_threshold:
-                    self._log_sample_error(
+                if self.error_threshold is not None and ema_loss < self.error_threshold:
+                    self._log_sample_metric(
                         batch_one, "val", num_timesteps=self.num_ode_steps_val
                     )
 
@@ -1193,10 +1195,10 @@ class LitModel_flow(LitModel):
         self._log_error(errors, "val")
         
         # Conditional sampling evaluation
-        if loss < self.error_threshold:
-            for n_steps in self.log_n_steps_ODE:
-                self._log_sample_error(batch_one, "val", num_timesteps=n_steps, post_fix=f"_{n_steps}")
-            self._log_sample_error(batch_one, "val", num_timesteps=self.num_ode_steps_val)
+        if self.error_threshold is not None and loss < self.error_threshold:
+            for n_steps in self.log_n_steps_ODE_val:
+                self._log_sample_metric(batch_one, "val", num_timesteps=n_steps, post_fix=f"_{n_steps}")
+            self._log_sample_metric(batch_one, "val", num_timesteps=self.num_ode_steps_val)
             
         return errors
 
@@ -1326,14 +1328,14 @@ class LitModel_flow(LitModel):
         if self.qh9:
             # assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             # Use QH9-specific test evaluation
-            for n_steps in self.log_n_steps_ODE:
-                self._log_sample_error_qh9(batch_one, "test_fix", num_timesteps=n_steps, post_fix=f"_{n_steps}")
-            self._log_sample_error_qh9(batch_one, "test_fix", num_timesteps=self.num_ode_steps_inf)
+            for n_steps in self.log_n_steps_ODE_test:
+                self._log_sample_metric(batch_one, "test", num_timesteps=n_steps, post_fix=f"_{n_steps}")
+            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_inf)
         else:
             # Standard MD17 evaluation
-            for n_steps in self.log_n_steps_ODE:
-                self._log_sample_error(batch_one, "test", num_timesteps=n_steps, post_fix=f"_{n_steps}")
-            self._log_sample_error(batch_one, "test", num_timesteps=self.num_ode_steps_inf)
+            for n_steps in self.log_n_steps_ODE_test:
+                self._log_sample_metric(batch_one, "test", num_timesteps=n_steps, post_fix=f"_{n_steps}")
+            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_inf)
             
         return errors
 
@@ -1358,14 +1360,14 @@ class LitModel_flow(LitModel):
         if self.qh9:
             assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             # Save predictions
-            traj, sample = self._log_sample_error_qh9(
+            traj, sample = self._log_sample_metric(
                 batch_one, "pred", num_timesteps=self.num_ode_steps_inf, 
                 save_pred=self.save_pred, log=False
             )
             if self.save_pred and hasattr(self, 'output_dir'):
                 torch.save(sample, self.output_dir / "sample" / f"pred_{batch_idx}.pt")
         else:
-            self._log_sample_error(batch_one, "pred", num_timesteps=self.num_ode_steps_inf)
+            self._log_sample_metric(batch_one, "pred", num_timesteps=self.num_ode_steps_inf)
             
         return errors
 
@@ -1389,7 +1391,7 @@ class LitModel_flow(LitModel):
         
         if self.qh9:
             assert self.test_batch_size == 1, "QH9 test batch size must be 1"
-            self._log_sample_error_qh9_mul(
+            self._log_sample_metric_qh9_mul(
                 batch_one, "pred_mul", num_timesteps=self.num_ode_steps_inf, mul=self.test_mul
             )
         else:
@@ -1731,7 +1733,7 @@ class LitModel_flow(LitModel):
                     batch_size=self.batch_size,
                 )
 
-    def _log_sample_error(self, batch_one, prefix, num_timesteps=1, post_fix=""):
+    def _log_sample_metric(self, batch_one, prefix, num_timesteps=1, post_fix="", save_pred=False, log=True):
         """
         Log sampling-based errors by running full generation and evaluating results.
         
@@ -1743,32 +1745,6 @@ class LitModel_flow(LitModel):
             prefix: Logging prefix
             num_timesteps: Number of ODE steps for sampling
             post_fix: Additional suffix for metric names
-        """
-        try:
-            sample, traj, pred = self.sample(batch_one, num_timesteps=num_timesteps)
-            metrics = self.metric(sample, batch_one)
-            for key in metrics.keys():
-                self.log(
-                    f"{prefix}/sample_{key}{post_fix}",
-                    metrics[key],
-                    on_step=True,
-                    on_epoch=True,
-                    prog_bar=True if key == "loss" else False,
-                    sync_dist=True,
-                    batch_size=self.batch_size,
-                )
-        except Exception as e:
-            logger.error(f"Error in logging sample error: {e}")
-
-    def _log_sample_error_qh9(self, batch_one, prefix, num_timesteps=1, post_fix="", save_pred=False, log=True):
-        """
-        QH9-specific test evaluation with optional prediction saving.
-        
-        Args:
-            batch_one: Single batch for evaluation
-            prefix: Logging prefix
-            num_timesteps: Number of ODE steps
-            post_fix: Additional suffix for metric names
             save_pred: Whether to save predictions
             log: Whether to log results
             
@@ -1778,7 +1754,7 @@ class LitModel_flow(LitModel):
         try:
             sample, traj, pred = self.sample(batch_one, num_timesteps=num_timesteps)
             if log:
-                metrics = self._metric_qh9(sample, batch_one)
+                metrics = self.metric(sample, batch_one)
                 for key in metrics.keys():
                     self.log(
                         f"{prefix}/sample_{key}{post_fix}",
@@ -1787,14 +1763,14 @@ class LitModel_flow(LitModel):
                         on_epoch=True,
                         prog_bar=True if key == "loss" else False,
                         sync_dist=True,
-                        batch_size=self.test_batch_size,
+                        batch_size=self.batch_size,
                     )
             if save_pred:
                 return traj, sample
         except Exception as e:
             logger.error(f"Error in logging sample error: {e}")
 
-    def _log_sample_error_qh9_mul(self, batch_one, prefix, num_timesteps=1, post_fix="", mul=5):
+    def _log_sample_metric_qh9_mul(self, batch_one, prefix, num_timesteps=1, post_fix="", mul=5):
         """
         Multiple sampling evaluation for ensemble analysis.
         
@@ -1835,7 +1811,7 @@ class LitModel_flow(LitModel):
                     sync_dist=True,
                     batch_size=self.test_batch_size,
                 )
-                
+            return all_samples, all_errors
         except Exception as e:
             logger.error(f"Error in logging multiple sample error: {e}")
 

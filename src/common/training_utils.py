@@ -96,5 +96,4 @@ def log_training_config(conf: DictConfig):
     # logger.info(f"  Accelerator: {conf.get('accelerator', 'auto')}")
     logger.info(f"  Strategy: {conf.get('strategy', "None")}")
     logger.info(f"  Devices: {conf.get('devices', 1)}")
-    logger.info(f"  Precision: {conf.get('precision', 32)}")
     logger.info(f"  Data type: {conf.get('data_type', 'float32')}")

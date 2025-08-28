@@ -4,7 +4,7 @@ dataset_name: QH9Dynamic
 version: 300k
 split: geometry  #[geometry, mol]
 
-batch_size: 24 # 32
+batch_size: 32 # 32
 train_batch_size: ${dataset.batch_size}
 valid_batch_size: ${dataset.batch_size}
 test_batch_size: ${dataset.batch_size}

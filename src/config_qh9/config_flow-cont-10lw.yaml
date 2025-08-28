@@ -2,7 +2,6 @@ hydra:
   run:
     dir: outputs/${dataset.dataset_full_name}/${wandb.run_name}
 
-
 defaults:
   - model: QHFlow
   - dataset: QH9Stable
@@ -38,9 +37,9 @@ mode: train
 wandb:
   mode: disabled
   project: "DFT-hamiltonian_qh9_v2"
-  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}-US_${model.use_block_S}
+  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}_IG_${flow.init_gauss}-US_${model.use_block_S}
   run_id: Null
-  tags: ["qh9","flow"]
+  tags: ["qh9","flow", "reproduce"]
   # resume: must
 
 # resume / inference (inference should be copied or it will be overwritten when training)
