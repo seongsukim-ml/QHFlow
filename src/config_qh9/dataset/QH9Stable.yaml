@@ -3,7 +3,7 @@ dataset_name: QH9Stable
 version: ''
 split: random  #[random, size_ood]
 
-batch_size: 16 # 32
+batch_size: 32 # 32
 train_batch_size: ${dataset.batch_size}
 valid_batch_size: ${dataset.batch_size}
 test_batch_size: ${dataset.batch_size}
