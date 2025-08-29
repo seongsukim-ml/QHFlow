@@ -34,7 +34,7 @@ wandb:
   mode: disabled
   project: "DFT-hamiltonian_md17_v2"
   run_name: ${model.version}${prefix}-${dataset.dataset_name}-UH_${use_init_hamiltonian}-UR_${use_init_hamiltonian_residue}
-  run_id: ''
+  run_id: Null
   tags: []
   # resume: must
 

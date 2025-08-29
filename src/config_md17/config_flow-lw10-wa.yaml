@@ -38,7 +38,7 @@ wandb:
   project: "DFT-hamiltonian_md17_v2"
   # run_name: FT_${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
   run_name: FT_${model.version}${prefix}-${dataset.dataset_name}
-  run_id: ''
+  run_id: Null
   # tags: []
   tags: ["finetune"]
   # resume: must
