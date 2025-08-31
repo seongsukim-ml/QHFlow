@@ -479,22 +479,27 @@ class LitModel(pl.LightningModule):
                 )
         return errors
 
+    def _batch_has_ground_truth_hamiltonian(self, batch):
+        return hasattr(batch, "diagonal_hamiltonian") or hasattr(batch, "hamiltonian")
+
     def _predict_step(self, batch, batch_idx):
         """Prediction step that saves outputs."""
         batch = self.post_processing(batch, self.default_type)
         outputs = self(batch)
-        errors = self.criterion(outputs, batch, loss_weights=self.loss_weights)
-        
-        for key in errors.keys():
-            self.log(
-                f"pred/{key}",
-                errors[key],
-                on_step=True,
-                on_epoch=True,
-                prog_bar=False,
-                sync_dist=True,
-                batch_size=self.test_batch_size,
-            )
+
+        # log the error if the batch has the ground truth hamiltonian
+        if self._batch_has_ground_truth_hamiltonian(batch):
+            errors = self.criterion(outputs, batch, loss_weights=self.loss_weights)
+            for key in errors.keys():
+                self.log(
+                    f"pred/{key}",
+                    errors[key],
+                    on_step=True,
+                    on_epoch=True,
+                    prog_bar=False,
+                    sync_dist=True,
+                    batch_size=self.test_batch_size,
+                )
         
         if self.qh9:
             # assert self.test_batch_size == 1
@@ -506,23 +511,26 @@ class LitModel(pl.LightningModule):
                 convention="back2pyscf",
             )
             for i in range(len(outputs["hamiltonian"])):
-                pred = outputs["hamiltonian"][i].cpu()
+                pred = {
+                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "pos": batch[i].pos.cpu(),
+                    "atoms": batch[i].atoms.cpu(),
+                }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
-            # only log the metrics if batch has the ground truth hamiltonian
-            if hasattr(batch, "diagonal_hamiltonian"):
-                metrics = self.metric(outputs, batch)
-                for key in metrics.keys():
-                    self.log(
-                        f"pred/sample_{key}",
-                        metrics[key],
-                        on_step=True,
-                        on_epoch=True,
-                        prog_bar=False,
-                        sync_dist=True,
-                        batch_size=1,
-                    )
+  
         else:
+            for i in range(len(outputs["hamiltonian"])):
+                pred = {
+                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "pos": batch[i].pos.cpu(),
+                    "atoms": batch[i].atoms.cpu(),
+                }
+                if hasattr(self, 'output_dir'):
+                    torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+
+        # only log the metrics if batch has the ground truth hamiltonian
+        if self._batch_has_ground_truth_hamiltonian(batch):
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
@@ -532,7 +540,7 @@ class LitModel(pl.LightningModule):
                     on_epoch=True,
                     prog_bar=False,
                     sync_dist=True,
-                    batch_size=self.test_batch_size,
+                    batch_size=1,
                 )
         return errors
 

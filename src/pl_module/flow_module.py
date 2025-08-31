@@ -1339,6 +1339,8 @@ class LitModel_flow(LitModel):
             
         return errors
 
+
+
     def _predict_step(self, batch, batch_idx):
         """Prediction step that saves outputs."""
         batch = self.post_processing(batch, self.default_type)
@@ -1346,29 +1348,65 @@ class LitModel_flow(LitModel):
         batch = self.corrupt(batch, mul=self.batch_mul)
         
         outputs = self(batch, batch.init_ham_t)
-        errors = self.criterion(
-            outputs,
-            batch,
-            loss_weights=self.loss_weights,
-            use_t_scale=self.use_t_scale,
-            use_mse_and_mae=self.use_mse_and_mae,
-        )
+
+        # log the error if the batch has the ground truth hamiltonian
+        if self._batch_has_ground_truth_hamiltonian(batch):
+            errors = self.criterion(
+                outputs,
+                batch,
+                loss_weights=self.loss_weights,
+                use_t_scale=self.use_t_scale,
+                use_mse_and_mae=self.use_mse_and_mae,
+            )
         
-        loss = errors["loss"]
-        self._log_error(errors, "pred_test")
+            loss = errors["loss"]
+            self._log_error(errors, "pred_test")
         
         if self.qh9:
-            assert self.test_batch_size == 1, "QH9 test batch size must be 1"
+            # assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             # Save predictions
-            traj, sample = self._log_sample_metric(
-                batch_one, "pred", num_timesteps=self.num_ode_steps_inf, 
-                save_pred=self.save_pred, log=False
+            sample, traj, pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            outputs["hamiltonian"] = self.build_final_matrix(
+                batch_one,
+                sample["hamiltonian_diagonal_blocks"],
+                sample["hamiltonian_non_diagonal_blocks"],
+                transform=True,
+                convention="back2pyscf",
             )
-            if self.save_pred and hasattr(self, 'output_dir'):
-                torch.save(sample, self.output_dir / "sample" / f"pred_{batch_idx}.pt")
+
+            for i in range(len(outputs["hamiltonian"])):
+                pred = {
+                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "pos": batch_one[i].pos.cpu(),
+                    "atoms": batch_one[i].atoms.cpu(),
+                }
+                if hasattr(self, 'output_dir'):
+                    torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
         else:
-            self._log_sample_metric(batch_one, "pred", num_timesteps=self.num_ode_steps_inf)
-            
+            sample, traj, pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            outputs["hamiltonian"] = sample["hamiltonian"]
+
+            for i in range(len(outputs["hamiltonian"])):
+                pred = {
+                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "pos": batch_one[i].pos.cpu(),
+                    "atoms": batch_one[i].atoms.cpu(),
+                }
+                if hasattr(self, 'output_dir'):
+                    torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+
+        if self._batch_has_ground_truth_hamiltonian(batch_one):
+            metrics = self.metric(sample, batch_one)
+            for key in metrics.keys():
+                self.log(
+                    f"pred/sample_{key}",
+                    metrics[key],
+                    on_step=True,
+                    on_epoch=True,
+                    prog_bar=True if key == "loss" else False,
+                    sync_dist=True,
+                    batch_size=self.batch_size,
+                )            
         return errors
 
     def _predict_mul_step(self, batch, batch_idx):
