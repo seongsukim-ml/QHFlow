@@ -76,6 +76,7 @@ def setup_wandb_logger(conf: DictConfig, output_dir: Path):
             ][0][4:12]
         else:
             run_id = conf.wandb.get("run_id", None)
+            run_id = None if run_id == "Null" or run_id == "null" else run_id
         logger.info(f"run_id: {run_id}")
 
     wandb_logger = WandbLogger(
