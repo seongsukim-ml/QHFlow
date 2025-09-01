@@ -46,7 +46,7 @@ BOHR2ANG = 1 / 1.8897259886  # 0.52917721067
 
 # Flow model defaults
 DEFAULT_BATCH_MUL = 1  # Number of times to repeat each batch during training
-DEFAULT_USE_T_SCALE = True  # Whether to use time-dependent loss scaling
+DEFAULT_USE_T_SCALE = False  # Whether to use time-dependent loss scaling (Not used for better performance)
 DEFAULT_NUM_ODE_STEPS = 3  # Default ODE integration steps for training
 DEFAULT_NUM_ODE_STEPS_VAL = 3  # Default ODE integration steps for validation
 DEFAULT_NUM_ODE_STEPS_QH9 = 3  # Default ODE steps for QH9 dataset (typically faster)
