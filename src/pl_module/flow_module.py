@@ -1228,7 +1228,7 @@ class LitModel_flow(LitModel):
         elif self.test_mode == "predict":
             return self._predict_step(batch, batch_idx)
         elif self.test_mode == "test-mul":
-            return self._predict_mul_step(batch, batch_idx)
+            return self._test_mul_step(batch, batch_idx)
         else:
             return self._test_step_standard(batch, batch_idx)  # Default to standard test
 
@@ -1393,6 +1393,8 @@ class LitModel_flow(LitModel):
                     "overlap": gt_overlap[i].cpu(),
                     "pos": batch_one[i].pos.cpu(),
                     "atoms": batch_one[i].atoms.squeeze(1).cpu(),
+                    "format":"pyscf",
+                    "length_unit":"bohr",
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
@@ -1402,6 +1404,8 @@ class LitModel_flow(LitModel):
                         "overlap": gt_overlap[i].cpu(),
                         "pos": batch_one[i].pos.cpu(),
                         "atoms": batch_one[i].atoms.squeeze(1).cpu(),
+                        "format":"pyscf",
+                        "length_unit":"bohr",
                     }
                     if hasattr(self, 'output_dir'):
                         torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
@@ -1416,6 +1420,8 @@ class LitModel_flow(LitModel):
                     "overlap": overlap,                   
                     "pos": pos,
                     "atoms": atoms,
+                    "format":"dev2svp",
+                    "length_unit":"angstrom",
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
@@ -1425,6 +1431,8 @@ class LitModel_flow(LitModel):
                         "overlap": overlap,
                         "pos": pos,
                         "atoms": atoms,
+                        "format":"dev2svp",
+                        "length_unit":"angstrom"
                     }
                     if hasattr(batch_one[i], "init_ham"):
                         gt["init_ham"] = batch_one[i].init_ham.squeeze(0).cpu()
