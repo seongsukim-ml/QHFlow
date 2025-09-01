@@ -89,7 +89,11 @@ def main(conf):
         callbacks = setup_callbacks(conf, output_dir)
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
         log_training_config(conf)
-        
+
+        if mode in ["predict"]:
+            logger.info(f"Mode: {mode}, Setting output_dir to {output_dir}")
+            setattr(lit_model, "output_dir", output_dir)
+
         # Setup warmup training if needed
         setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks)
         # Start training/testing

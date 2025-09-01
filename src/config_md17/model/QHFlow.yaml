@@ -3,5 +3,5 @@ version: QHFlow
 
 hidden_size: 128
 bottle_hidden_size: 32
-use_block_S: True
+use_block_S: False
 dataset_type: "md17"

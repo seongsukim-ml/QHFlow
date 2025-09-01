@@ -15,6 +15,8 @@ from torch_scatter import scatter_sum
 from argparse import Namespace
 from torch_geometric.data import Batch
 
+import os
+
 # PySCF imports for inference functionality
 import pyscf
 from pyscf import dft
@@ -243,6 +245,7 @@ class LitModel(pl.LightningModule):
         batch = self.post_processing(batch, self.default_type)
         outputs = self(batch)
         errors = self.criterion(outputs, batch, loss_weights=self.loss_weights)
+        self.cur_batch_size = len(batch)
 
         loss = errors["loss"]
         for key in errors.keys():
@@ -253,7 +256,7 @@ class LitModel(pl.LightningModule):
                 on_epoch=True,
                 prog_bar=True if key == "loss" else False,
                 sync_dist=True,
-                batch_size=self.batch_size,
+                batch_size=self.cur_batch_size,
             )
         return loss
 
@@ -272,6 +275,7 @@ class LitModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         """Validation step with optional EMA evaluation."""
         batch = self.post_processing(batch, self.default_type)
+        self.cur_batch_size = len(batch)
         
         # EMA validation if available
         if self.ema is not None:
@@ -287,7 +291,7 @@ class LitModel(pl.LightningModule):
                         on_epoch=True,
                         prog_bar=True if key == "loss" else False,
                         sync_dist=True,
-                        batch_size=self.batch_size,
+                        batch_size=self.cur_batch_size,
                     )
                 
                 ema_metrics = self.metric(ema_outputs, batch)
@@ -299,7 +303,7 @@ class LitModel(pl.LightningModule):
                         on_epoch=True,
                         prog_bar=True if key == "loss" else False,
                         sync_dist=True,
-                        batch_size=self.batch_size,
+                        batch_size=self.cur_batch_size,
                     )
         
         # Regular validation
@@ -314,7 +318,7 @@ class LitModel(pl.LightningModule):
                 on_epoch=True,
                 prog_bar=True if key == "loss" else False,
                 sync_dist=True,
-                batch_size=self.batch_size,
+                batch_size=self.cur_batch_size,
             )
         
         metrics = self.metric(outputs, batch)
@@ -326,7 +330,7 @@ class LitModel(pl.LightningModule):
                 on_epoch=True,
                 prog_bar=True if key == "loss" else False,
                 sync_dist=True,
-                batch_size=self.batch_size,
+                batch_size=self.cur_batch_size,
             )
         return errors
 
@@ -440,6 +444,7 @@ class LitModel(pl.LightningModule):
         batch = self.post_processing(batch, self.default_type)
         outputs = self(batch)
         errors = self.criterion(outputs, batch, loss_weights=self.loss_weights)
+        self.cur_batch_size = len(batch)
         
         for key in errors.keys():
             self.log(
@@ -449,11 +454,11 @@ class LitModel(pl.LightningModule):
                 on_epoch=True,
                 prog_bar=False,
                 sync_dist=True,
-                batch_size=self.test_batch_size,
+                batch_size=self.cur_batch_size,
             )
         
         if self.qh9:
-            assert self.test_batch_size == 1
+            # assert self.test_batch_size == 1
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
@@ -463,7 +468,7 @@ class LitModel(pl.LightningModule):
                     on_epoch=True,
                     prog_bar=False,
                     sync_dist=True,
-                    batch_size=1,
+                    batch_size=self.cur_batch_size,
                 )
         else:
             metrics = self.metric(outputs, batch)
@@ -475,32 +480,28 @@ class LitModel(pl.LightningModule):
                     on_epoch=True,
                     prog_bar=False,
                     sync_dist=True,
-                    batch_size=self.test_batch_size,
+                    batch_size=self.cur_batch_size,
                 )
         return errors
 
     def _batch_has_ground_truth_hamiltonian(self, batch):
         return hasattr(batch, "diagonal_hamiltonian") or hasattr(batch, "hamiltonian")
 
-    def _predict_step(self, batch, batch_idx):
+    def _predict_step(self, batch, batch_idx, log_outputs=True):
         """Prediction step that saves outputs."""
         batch = self.post_processing(batch, self.default_type)
         outputs = self(batch)
+        self.cur_batch_size = len(batch)
 
+        if hasattr(self, 'output_dir'):
+            if not os.path.exists(self.output_dir / "pred"):
+                os.makedirs(self.output_dir / "pred", exist_ok=True)
         # log the error if the batch has the ground truth hamiltonian
         if self._batch_has_ground_truth_hamiltonian(batch):
-            errors = self.criterion(outputs, batch, loss_weights=self.loss_weights)
-            for key in errors.keys():
-                self.log(
-                    f"pred/{key}",
-                    errors[key],
-                    on_step=True,
-                    on_epoch=True,
-                    prog_bar=False,
-                    sync_dist=True,
-                    batch_size=self.test_batch_size,
-                )
-        
+            if hasattr(self, 'output_dir'):
+                if not os.path.exists(self.output_dir / "gt"):
+                    os.makedirs(self.output_dir / "gt", exist_ok=True)
+                
         if self.qh9:
             # assert self.test_batch_size == 1
             outputs["hamiltonian"] = self.build_final_matrix(
@@ -510,27 +511,74 @@ class LitModel(pl.LightningModule):
                 transform=True,
                 convention="back2pyscf",
             )
-            for i in range(len(outputs["hamiltonian"])):
+            gt_overlap = self.build_final_matrix(
+                batch,
+                batch.diagonal_overlap,
+                batch.non_diagonal_overlap,
+                transform=True,
+                convention="back2pyscf",
+            )
+            
+            if self._batch_has_ground_truth_hamiltonian(batch):
+                gt_hamiltonian = self.build_final_matrix(
+                    batch,
+                    batch.diagonal_hamiltonian,
+                    batch.non_diagonal_hamiltonian,
+                    transform=True,
+                    convention="back2pyscf",
+                )                
+            
+            for i in range(self.cur_batch_size):
                 pred = {
                     "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "overlap": gt_overlap[i].cpu(),
                     "pos": batch[i].pos.cpu(),
                     "atoms": batch[i].atoms.cpu(),
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+                if self._batch_has_ground_truth_hamiltonian(batch):
+                    gt = {
+                        "hamiltonian": gt_hamiltonian[i].cpu(),
+                        "overlap": gt_overlap[i].cpu(),
+                        "pos": batch[i].pos.cpu(),
+                        "atoms": batch[i].atoms.cpu(),
+                    }
+                    if hasattr(self, 'output_dir'):
+                        torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
   
         else:
-            for i in range(len(outputs["hamiltonian"])):
+            for i in range(self.cur_batch_size):
+                overlap = batch[i]["overlap"].squeeze(0).cpu()
+                atoms = batch[i].atoms.squeeze(1).cpu()
+                pos = batch[i].pos.cpu()
                 pred = {
                     "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
-                    "pos": batch[i].pos.cpu(),
-                    "atoms": batch[i].atoms.cpu(),
+                    "overlap": overlap,                   
+                    "pos": pos,
+                    "atoms": atoms,
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+                if self._batch_has_ground_truth_hamiltonian(batch):
+                    gt = {
+                        "hamiltonian": batch[i].hamiltonian.squeeze(0).cpu(),
+                        "overlap": overlap,
+                        "pos": pos,
+                        "atoms": atoms,
+                    }
+                    if hasattr(batch[i], "init_ham"):
+                        gt["init_ham"] = batch[i].init_ham.squeeze(0).cpu()
+                    if hasattr(batch[i], "energy"):
+                        gt["energy"] = batch[i].energy.cpu()
+                    if hasattr(batch[i], "force"):
+                        gt["force"] = batch[i].force.cpu()
+                    if hasattr(self, 'output_dir'):
+                        torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
+
 
         # only log the metrics if batch has the ground truth hamiltonian
-        if self._batch_has_ground_truth_hamiltonian(batch):
+        if self._batch_has_ground_truth_hamiltonian(batch) and log_outputs:
             metrics = self.metric(outputs, batch)
             for key in metrics.keys():
                 self.log(
@@ -540,9 +588,9 @@ class LitModel(pl.LightningModule):
                     on_epoch=True,
                     prog_bar=False,
                     sync_dist=True,
-                    batch_size=1,
+                    batch_size=self.cur_batch_size,
                 )
-        return errors
+        return None
 
     # ==========================================
     # Data Processing Methods

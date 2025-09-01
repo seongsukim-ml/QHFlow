@@ -35,6 +35,7 @@ from pl_module.base_module import LitModel, convention_dict
 from torch_geometric.data import Batch
 from utils import AOData, WDs, WDs_batch, Expansion, get_total_cycles, build_matrix
 from e3nn import o3
+import os
 
 # ==========================================
 # Constants and Configuration
@@ -1120,7 +1121,6 @@ class LitModel_flow(LitModel):
             Training loss
         """
         batch = self.post_processing(batch, self.default_type)
-        
         # Apply corruption strategy
         if self.use_corrupt_mul:
             batch = self.corrupt_mul(batch)
@@ -1129,6 +1129,7 @@ class LitModel_flow(LitModel):
             
         # Forward pass
         outputs = self(batch, batch.init_ham_t)
+        self.cur_batch_size = len(batch)
         
         # Compute losses based on mode (finetune or not)
         errors = self.criterion(
@@ -1139,7 +1140,7 @@ class LitModel_flow(LitModel):
             use_mse_and_mae=self.use_mse_and_mae,
         )
         
-        loss = errors["loss"]
+        loss = errors["loss"]        
         self._log_error(errors, "train")
         return loss
 
@@ -1160,7 +1161,8 @@ class LitModel_flow(LitModel):
         batch = self.post_processing(batch, self.default_type)
         batch_one = batch.clone()
         batch = self.corrupt(batch, mul=self.batch_mul)
-        
+        self.cur_batch_size = len(batch)
+
         # EMA evaluation if available
         if self.ema is not None:
             with self.ema.average_parameters():
@@ -1190,7 +1192,7 @@ class LitModel_flow(LitModel):
             use_t_scale=self.use_t_scale,
             use_mse_and_mae=self.use_mse_and_mae,
         )
-        
+
         loss = errors["loss"]
         self._log_error(errors, "val")
         
@@ -1225,7 +1227,7 @@ class LitModel_flow(LitModel):
             return self._test_step_standard(batch, batch_idx)
         elif self.test_mode == "predict":
             return self._predict_step(batch, batch_idx)
-        elif self.test_mode == "predict-mul":
+        elif self.test_mode == "test-mul":
             return self._predict_mul_step(batch, batch_idx)
         else:
             return self._test_step_standard(batch, batch_idx)  # Default to standard test
@@ -1236,7 +1238,7 @@ class LitModel_flow(LitModel):
         assert self.test_batch_size == 1, "QH9 test batch size must be 1"
         batch = self.post_processing(batch, self.default_type)
         batch_one = batch.clone()
-        
+        self.cur_batch_size = len(batch)
         # Get cached values or initialize
         cycle = getattr(batch_one, "cycle", None)
         init_cycle_time = getattr(batch_one, "init_cycle_time", None)
@@ -1310,6 +1312,7 @@ class LitModel_flow(LitModel):
         batch = self.post_processing(batch, self.default_type)
         batch_one = batch.clone()
         batch = self.corrupt(batch, mul=self.batch_mul)
+        self.cur_batch_size = len(batch)
         
         # Standard loss computation
         outputs = self(batch, batch.init_ham_t)
@@ -1341,61 +1344,98 @@ class LitModel_flow(LitModel):
 
 
 
-    def _predict_step(self, batch, batch_idx):
+    def _predict_step(self, batch, batch_idx, log_outputs=True):
         """Prediction step that saves outputs."""
         batch = self.post_processing(batch, self.default_type)
         batch_one = batch.clone()
-        batch = self.corrupt(batch, mul=self.batch_mul)
-        
-        outputs = self(batch, batch.init_ham_t)
+        self.cur_batch_size = len(batch)
 
+        # outputs = self(batch, batch.init_ham_t)
+        if hasattr(self, 'output_dir'):
+            if not os.path.exists(self.output_dir / "pred"):
+                os.makedirs(self.output_dir / "pred", exist_ok=True)
         # log the error if the batch has the ground truth hamiltonian
         if self._batch_has_ground_truth_hamiltonian(batch):
-            errors = self.criterion(
-                outputs,
-                batch,
-                loss_weights=self.loss_weights,
-                use_t_scale=self.use_t_scale,
-                use_mse_and_mae=self.use_mse_and_mae,
-            )
-        
-            loss = errors["loss"]
-            self._log_error(errors, "pred_test")
+            if hasattr(self, 'output_dir'):
+                if not os.path.exists(self.output_dir / "gt"):
+                    os.makedirs(self.output_dir / "gt", exist_ok=True)   
         
         if self.qh9:
             # assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             # Save predictions
-            sample, traj, pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
-            outputs["hamiltonian"] = self.build_final_matrix(
+            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            sample["hamiltonian"] = self.build_final_matrix(
                 batch_one,
                 sample["hamiltonian_diagonal_blocks"],
                 sample["hamiltonian_non_diagonal_blocks"],
                 transform=True,
                 convention="back2pyscf",
             )
+            gt_overlap = self.build_final_matrix(
+                batch_one,
+                batch_one.diagonal_overlap,
+                batch_one.non_diagonal_overlap,
+                transform=True,
+                convention="back2pyscf",
+            )
+            if self._batch_has_ground_truth_hamiltonian(batch_one):
+                gt_hamiltonian = self.build_final_matrix(
+                    batch_one,
+                    batch_one.diagonal_hamiltonian,
+                    batch_one.non_diagonal_hamiltonian,
+                    transform=True,
+                    convention="back2pyscf",
+                )
 
-            for i in range(len(outputs["hamiltonian"])):
+            for i in range(self.cur_batch_size):
                 pred = {
-                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
+                    "pred_hamiltonian": sample["hamiltonian"][i].cpu(),
+                    "overlap": gt_overlap[i].cpu(),
                     "pos": batch_one[i].pos.cpu(),
-                    "atoms": batch_one[i].atoms.cpu(),
+                    "atoms": batch_one[i].atoms.squeeze(1).cpu(),
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+                if self._batch_has_ground_truth_hamiltonian(batch):
+                    gt = {
+                        "hamiltonian": gt_hamiltonian[i].cpu(),
+                        "overlap": gt_overlap[i].cpu(),
+                        "pos": batch_one[i].pos.cpu(),
+                        "atoms": batch_one[i].atoms.squeeze(1).cpu(),
+                    }
+                    if hasattr(self, 'output_dir'):
+                        torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
         else:
-            sample, traj, pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
-            outputs["hamiltonian"] = sample["hamiltonian"]
-
-            for i in range(len(outputs["hamiltonian"])):
+            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            for i in range(self.cur_batch_size):
+                overlap = batch_one[i]["overlap"].squeeze(0).cpu()
+                atoms = batch_one[i].atoms.squeeze(1).cpu()
+                pos = batch_one[i].pos.cpu()
                 pred = {
-                    "pred_hamiltonian": outputs["hamiltonian"][i].cpu(),
-                    "pos": batch_one[i].pos.cpu(),
-                    "atoms": batch_one[i].atoms.cpu(),
+                    "pred_hamiltonian": sample["hamiltonian"][i].cpu(),
+                    "overlap": overlap,                   
+                    "pos": pos,
+                    "atoms": atoms,
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
+                if self._batch_has_ground_truth_hamiltonian(batch_one):
+                    gt = {
+                        "hamiltonian": batch_one[i].hamiltonian.squeeze(0).cpu(),
+                        "overlap": overlap,
+                        "pos": pos,
+                        "atoms": atoms,
+                    }
+                    if hasattr(batch_one[i], "init_ham"):
+                        gt["init_ham"] = batch_one[i].init_ham.squeeze(0).cpu()
+                    if hasattr(batch_one[i], "energy"):
+                        gt["energy"] = batch_one[i].energy.cpu()
+                    if hasattr(batch_one[i], "force"):
+                        gt["force"] = batch_one[i].force.cpu()
+                    if hasattr(self, 'output_dir'):
+                        torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
 
-        if self._batch_has_ground_truth_hamiltonian(batch_one):
+        if self._batch_has_ground_truth_hamiltonian(batch_one) and log_outputs:
             metrics = self.metric(sample, batch_one)
             for key in metrics.keys():
                 self.log(
@@ -1405,15 +1445,16 @@ class LitModel_flow(LitModel):
                     on_epoch=True,
                     prog_bar=True if key == "loss" else False,
                     sync_dist=True,
-                    batch_size=self.batch_size,
+                    batch_size=self.cur_batch_size,
                 )            
-        return errors
+        return None
 
-    def _predict_mul_step(self, batch, batch_idx):
+    def _test_mul_step(self, batch, batch_idx):
         """Multiple prediction step for ensemble evaluation."""
         batch = self.post_processing(batch, self.default_type)
         batch_one = batch.clone()
         batch = self.corrupt(batch, mul=self.batch_mul)
+        self.cur_batch_size = len(batch)
         
         outputs = self(batch, batch.init_ham_t)
         errors = self.criterion(
@@ -1757,7 +1798,7 @@ class LitModel_flow(LitModel):
                     on_step=True,
                     on_epoch=True,
                     sync_dist=True,
-                    batch_size=self.batch_size,
+                    batch_size=self.cur_batch_size,
                 )
             else:
                 # Regular errors
@@ -1768,7 +1809,7 @@ class LitModel_flow(LitModel):
                     on_epoch=True,
                     prog_bar=True if key == "loss" else False,
                     sync_dist=True,
-                    batch_size=self.batch_size,
+                    batch_size=self.cur_batch_size,
                 )
 
     def _log_sample_metric(self, batch_one, prefix, num_timesteps=1, post_fix="", save_pred=False, log=True):
@@ -1801,7 +1842,7 @@ class LitModel_flow(LitModel):
                         on_epoch=True,
                         prog_bar=True if key == "loss" else False,
                         sync_dist=True,
-                        batch_size=self.batch_size,
+                        batch_size=self.cur_batch_size,
                     )
             if save_pred:
                 return traj, sample
@@ -1847,7 +1888,7 @@ class LitModel_flow(LitModel):
                     on_epoch=True,
                     prog_bar=True if "mean" in key else False,
                     sync_dist=True,
-                    batch_size=self.test_batch_size,
+                    batch_size=self.cur_batch_size,
                 )
             return all_samples, all_errors
         except Exception as e:

@@ -65,14 +65,14 @@ def main(conf):
 
     # Get and validate mode
     mode = get_mode(conf)
-    assert mode in ["train", "test", "eval", "inference", "predict", "predict-mul"]
+    assert mode in ["train", "test", "eval", "inference", "predict", "test-mul"]
     setattr(lit_model, "test_mode", "test")
 
     # Import checkpoint utilities
     from common.checkpoint_utils import get_checkpoint_path, setup_wandb_logger
     
     # Load the checkpoint if it exists
-    if mode in ["train", "test", "inference", "predict", "predict-mul"]:
+    if mode in ["train", "test", "inference", "predict", "test-mul"]:
         # Get checkpoint path
         ckpt_path = get_checkpoint_path(conf, output_dir)
         
@@ -84,7 +84,11 @@ def main(conf):
         callbacks = setup_callbacks(conf, output_dir)
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
         log_training_config(conf)
-        
+
+        if mode in ["predict"]:
+            logger.info(f"Mode: {mode}, Setting output_dir to {output_dir}")
+            setattr(lit_model, "output_dir", output_dir)        
+
         # Start training/testing
         _run_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf)
 
