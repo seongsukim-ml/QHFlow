@@ -5,7 +5,7 @@ from .Real_QHNet_qh9 import QHNet as Real_QHNet_qh9
 import logging
 logger = logging.getLogger(__name__)
 
-__all__ = ["get_model"]
+__all__ = ["get_model", "get_default_model_args", "default_model_args_qh9", "default_model_args_md17"]
 
 def get_model(args):
     model_args = {
@@ -42,3 +42,46 @@ def get_model(args):
         raise NotImplementedError(f"the version {args.version} is not implemented.")
     else:
         return model(**model_args)
+
+# For debugging
+def get_default_model_args(dataset_type):
+    if dataset_type == "qh9":
+        return default_model_args_qh9
+    elif dataset_type == "md17":
+        return default_model_args_md17
+    else:
+        raise ValueError(f"Invalid dataset type: {dataset_type}")
+
+default_model_args_qh9 = {
+    "in_node_features": 1,
+    "sh_lmax": 4,
+    "hidden_size": 128,
+    "bottle_hidden_size": 32,
+    "num_gnn_layers": 5,
+    "max_radius": 15,
+    "num_nodes": 10,
+    "radius_embed_dim": 16,
+    "max_T": 15,
+    "use_block_S": True,
+    "use_block_H": True,
+    "ham_dim": 24,
+    "ham_hidden": 24 * 24 // 2,
+    "dataset_type": "qh9",
+}
+
+default_model_args_md17 = {
+    "in_node_features": 1,
+    "sh_lmax": 4,
+    "hidden_size": 128,
+    "bottle_hidden_size": 32,
+    "num_gnn_layers": 5,
+    "max_radius": 15,
+    "num_nodes": 10,
+    "radius_embed_dim": 16,
+    "max_T": 15,
+    "use_block_S": False,
+    "use_block_H": True,
+    "ham_dim": 24,
+    "ham_hidden": 24 * 24 // 2,
+    "dataset_type": "md17",
+}

@@ -1,0 +1,5 @@
+CUDA_VISIBLE_DEVICES=4 python -m experiment.train_md17 model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=5 python -m experiment.train_md17 dataset=ethanol model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=6 python -m experiment.train_md17 dataset=malondialdehyde model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=7 python -m experiment.train_md17 dataset=uracil model=QHFlow wandb.mode="online"
+CUDA_VISIBLE_DEVICES=4 python -m experiment.train_md17 model=QHFlow prefix="_b50" wandb.mode="online" dataset.batch_size=50
