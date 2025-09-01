@@ -4,22 +4,29 @@ cd ~/25DFT/QHFlow/src
 # python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
 # CUDA_VISIBLE_DEVICES=2,3 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
 
+## QH9 400k
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol wandb.mode=online
 
-## 260k
+## QH9 260k
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol wandb.mode=online prefix="_260k" dataset.total_steps=260000
 
 # MD17 baseline
-CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 --config-name=config dataset=water wandb.mode=online
-CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 --config-name=config dataset=ethanol wandb.mode=online
-CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 --config-name=config dataset=malondialdehyde wandb.mode=online
-CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 --config-name=config dataset=uracil wandb.mode=online
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 --config-name=qhnet dataset=water wandb.mode=online
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 --config-name=qhnet dataset=ethanol wandb.mode=online
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 --config-name=qhnet dataset=malondialdehyde wandb.mode=online
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 --config-name=qhnet dataset=uracil wandb.mode=online
+
+# MD17 baseline / predict
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 --config-name=qhnet dataset=water mode=predict
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 --config-name=qhnet dataset=ethanol mode=predict
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 --config-name=qhnet dataset=malondialdehyde mode=predict
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 --config-name=qhnet dataset=uracil mode=predict
 
 # MD17 QHFlow
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 dataset=water wandb.mode=online
