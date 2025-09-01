@@ -535,7 +535,7 @@ class LitModel(pl.LightningModule):
                     "pos": batch[i].pos.cpu(),
                     "atoms": batch[i].atoms.cpu(),
                     "format":"pyscf",
-                    "length_unit":"bohr",
+                    "length_unit":"angstrom",
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
@@ -546,7 +546,7 @@ class LitModel(pl.LightningModule):
                         "pos": batch[i].pos.cpu(),
                         "atoms": batch[i].atoms.cpu(),
                         "format":"pyscf",
-                        "length_unit":"bohr",
+                        "length_unit":"angstrom",
                     }
                     if hasattr(self, 'output_dir'):
                         torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
@@ -561,8 +561,8 @@ class LitModel(pl.LightningModule):
                     "overlap": overlap,                   
                     "pos": pos,
                     "atoms": atoms,
-                    "format":"dev2svp",
-                    "length_unit":"angstrom",
+                    "format":"dev2svp", # Need to change to pyscf for dft calculation
+                    "length_unit":"bohr", # Need to change to angstrom for dft calculation
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
@@ -572,8 +572,8 @@ class LitModel(pl.LightningModule):
                         "overlap": overlap,
                         "pos": pos,
                         "atoms": atoms,
-                        "format":"dev2svp",
-                        "length_unit":"angstrom",
+                        "format":"dev2svp", # Need to change to pyscf for dft calculation
+                        "length_unit":"bohr", # Need to change to angstrom for dft calculation
                     }
                     if hasattr(batch[i], "init_ham"):
                         gt["init_ham"] = batch[i].init_ham.squeeze(0).cpu()
