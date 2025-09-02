@@ -36,9 +36,10 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_qh9_v2"
-  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}_IG_${flow.init_gauss}-US_${model.use_block_S}
+  project: "DFT-25-QH9"
+  entity: "kaist-korea"
   run_id: Null
+  run_name: ${model.version}${prefix}-${dataset.dataset_full_name}_IG_${flow.init_gauss}-US_${model.use_block_S}
   tags: ["qh9","flow", "reproduce"]
   # resume: must
 

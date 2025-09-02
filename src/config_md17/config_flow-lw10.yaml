@@ -31,10 +31,11 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_md17_v2"
+  project: "DFT-25-MD17"
+  entity: "kaist-korea"
+  run_id: Null
   # run_name: ${model.version}${prefix}-${dataset.dataset_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}
   run_name: ${model.version}${prefix}-${dataset.dataset_name}
-  run_id: Null
   # tags: []
   tags: []
   # resume: must

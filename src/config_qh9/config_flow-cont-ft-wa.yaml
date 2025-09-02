@@ -38,9 +38,10 @@ mode: train
 
 wandb:
   mode: disabled
-  project: "DFT-hamiltonian_qh9_v2"
-  run_name: FT_wa_${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}-US_${model.use_block_S}
+  project: "DFT-25-QH9"
+  entity: "kaist-korea"
   run_id: Null
+  run_name: FT_wa_${model.version}${prefix}-${dataset.dataset_full_name}-UR_${use_init_hamiltonian_residue}_IG_${flow.init_gauss}_TS_${flow.use_t_scale}-US_${model.use_block_S}
   tags: ["qh9","flow"]
   # resume: must
 

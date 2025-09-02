@@ -82,6 +82,7 @@ def setup_wandb_logger(conf: DictConfig, output_dir: Path):
     wandb_logger = WandbLogger(
         project=conf.wandb.project,
         name=conf.wandb.run_name,
+        entity=conf.wandb.get("entity", None),
         save_dir=output_dir,
         mode=getattr(conf.wandb, "mode", "online"),
         id=run_id,
