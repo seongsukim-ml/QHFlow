@@ -297,7 +297,7 @@ class LitModel(pl.LightningModule):
                 ema_metrics = self.metric(ema_outputs, batch)
                 for key in ema_metrics.keys():
                     self.log(
-                        f"val_ema/{key}",
+                        f"val_ema/sample_{key}",
                         ema_metrics[key],
                         on_step=True,
                         on_epoch=True,
