@@ -46,7 +46,7 @@ BOHR2ANG = 1 / 1.8897259886  # 0.52917721067
 
 # Flow model defaults
 DEFAULT_BATCH_MUL = 1  # Number of times to repeat each batch during training
-DEFAULT_USE_T_SCALE = False  # Whether to use time-dependent loss scaling (Not used for better performance)
+DEFAULT_USE_T_SCALE = False  # Whether to use time-dependent loss scaling
 DEFAULT_NUM_ODE_STEPS = 3  # Default ODE integration steps for training
 DEFAULT_NUM_ODE_STEPS_VAL = 3  # Default ODE integration steps for validation
 DEFAULT_NUM_ODE_STEPS_QH9 = 3  # Default ODE steps for QH9 dataset (typically faster)
@@ -1420,8 +1420,8 @@ class LitModel_flow(LitModel):
                     "overlap": overlap,                   
                     "pos": pos,
                     "atoms": atoms,
-                    "format":"dev2svp",
-                    "length_unit":"bohr",
+                    "format":"dev2svp", # Need to change to pyscf for dft calculation
+                    "length_unit":"bohr", # Need to change to angstrom for dft calculation
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
@@ -1431,8 +1431,8 @@ class LitModel_flow(LitModel):
                         "overlap": overlap,
                         "pos": pos,
                         "atoms": atoms,
-                        "format":"dev2svp",
-                        "length_unit":"bohr"
+                        "format":"dev2svp", # Need to change to pyscf for dft calculation
+                        "length_unit":"bohr" # Need to change to angstrom for dft calculation
                     }
                     if hasattr(batch_one[i], "init_ham"):
                         gt["init_ham"] = batch_one[i].init_ham.squeeze(0).cpu()

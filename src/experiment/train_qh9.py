@@ -95,7 +95,7 @@ def main(conf):
             setattr(lit_model, "output_dir", output_dir)
 
         # Setup warmup training if needed
-        setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks)
+        setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks, ckpt_path is None)
         # Start training/testing
         _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf, output_dir)
 

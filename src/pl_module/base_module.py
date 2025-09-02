@@ -324,7 +324,7 @@ class LitModel(pl.LightningModule):
         metrics = self.metric(outputs, batch)
         for key in metrics.keys():
             self.log(
-                f"val/{key}",
+                f"val/sample_{key}",
                 metrics[key],
                 on_step=True,
                 on_epoch=True,
@@ -457,31 +457,18 @@ class LitModel(pl.LightningModule):
                 batch_size=self.cur_batch_size,
             )
         
-        if self.qh9:
-            # assert self.test_batch_size == 1
-            metrics = self.metric(outputs, batch)
-            for key in metrics.keys():
-                self.log(
-                    f"test_qh9/sample_{key}",
-                    metrics[key],
-                    on_step=True,
-                    on_epoch=True,
-                    prog_bar=False,
-                    sync_dist=True,
-                    batch_size=self.cur_batch_size,
-                )
-        else:
-            metrics = self.metric(outputs, batch)
-            for key in metrics.keys():
-                self.log(
-                    f"test/sample_{key}",
-                    metrics[key],
-                    on_step=True,
-                    on_epoch=True,
-                    prog_bar=False,
-                    sync_dist=True,
-                    batch_size=self.cur_batch_size,
-                )
+        # assert self.test_batch_size == 1
+        metrics = self.metric(outputs, batch)
+        for key in metrics.keys():
+            self.log(
+                f"test/sample_{key}",
+                metrics[key],
+                on_step=True,
+                on_epoch=True,
+                prog_bar=False,
+                sync_dist=True,
+                batch_size=self.cur_batch_size,
+            )
         return errors
 
     def _batch_has_ground_truth_hamiltonian(self, batch):
@@ -691,6 +678,9 @@ class LitModel(pl.LightningModule):
             Tuple[Tensor, Tensor] or Tuple[List[Tensor], List[Tensor]]: Tuple containing:
                 - orbital_energies: Eigenvalues [B, N] or List of Eigenvalues [N]
                 - orbital_coefficients: Eigenvectors [B, N, N] or List of Eigenvectors [N, N]
+        Notes:
+            The orbital energies of the converted matrix are the same as the original matrix of MD17 but not in QH9
+            The orbital coefficients of the converted matrix are not the same as the original matrix of both MD17 and QH9
         """
         assert method in ["eigh", "cholesky"], f"Invalid method: {method}"
         if isinstance(overlap_matrix, list) and isinstance(full_hamiltonian, list):

@@ -149,13 +149,14 @@ def _create_qh9_data_loaders(train_dataset, valid_dataset, test_dataset, conf: D
     
     return train_loader, val_loader, test_loader
 
-def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logger, callbacks):
+def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logger, callbacks, use_warmup=True):
     """Setup warmup training for Real_QHNet if needed."""
     import pytorch_lightning as pl
     from torch_geometric.loader import DataLoader
     
     # Check if warmup is needed for Real_QHNet
     if (
+        use_warmup and
         conf.model.version.lower() == "Real_QHNet".lower()
         and conf.get("warmup_step") is not None
         and conf.get("mode", "train") != "test"
@@ -200,6 +201,8 @@ def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logg
         conf.dataset.learning_rate = real_lr
         
         return True
+    else:
+        logger.info("Skip warmup training")
     
     return False
 
