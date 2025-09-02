@@ -237,3 +237,21 @@ def create_inference_loader(mode: str, test_dataset, conf: DictConfig):
         raise ValueError(f"Unknown mode: {mode}")
     
     return inf_loader
+
+def dataset_abbr(dataset_name: str):
+    qh9_abbr = {
+        "QH9Stable-random".lower(): "iid",
+        "QH9Stable-size_ood".lower(): "ood",
+        "QH9Dynamic-300k-geometry".lower(): "geo",
+        "QH9Dynamic-300k-mol".lower(): "mol",
+    }
+    return qh9_abbr[dataset_name.lower()]
+
+def dataset_full_name(dataset_abbr: str):
+    qh9_full_name = {
+        "iid".lower(): "QH9Stable-random",
+        "ood".lower(): "QH9Stable-size_ood",
+        "geo".lower(): "QH9Dynamic-300k-geometry",
+        "mol".lower(): "QH9Dynamic-300k-mol",
+    }
+    return qh9_full_name[dataset_abbr.lower()]

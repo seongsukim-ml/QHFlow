@@ -11,7 +11,7 @@ from common.setup import (
 )
 from common.qh9_utils import (
     load_qh9_dataset, create_qh9_data_loaders, setup_warmup_training,
-    create_inference_loader
+    create_inference_loader, dataset_abbr, dataset_full_name
 )
 from common.checkpoint_utils import get_checkpoint_path, setup_wandb_logger
 from common.training_utils import setup_callbacks, setup_trainer, log_training_config
@@ -80,6 +80,8 @@ def main(conf):
         
         # Get checkpoint path
         ckpt_path = get_checkpoint_path(conf, output_dir)
+
+        conf.wandb.tags += ["qh9", dataset_abbr(conf.dataset.dataset_full_name)]
         
         # Setup wandb logger
         wandb_logger = setup_wandb_logger(conf, output_dir)

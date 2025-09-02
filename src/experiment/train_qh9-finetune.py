@@ -12,12 +12,13 @@ from common.setup import (
 )
 from common.qh9_utils import (
     create_qh9_data_loaders, setup_warmup_training,
-    create_inference_loader
+    create_inference_loader, dataset_abbr, dataset_full_name
 )
 from common.qh9_finetune_utils import (
     load_qh9_finetune_dataset, setup_qh9_finetune_model, validate_qh9_finetune_config
 )
 from common.data_utils import log_dataset_info
+from common.checkpoint_utils import setup_wandb_logger
 from common.training_utils import setup_callbacks, setup_logger, setup_trainer, log_training_config
 
 # Setup multiprocessing
@@ -72,7 +73,7 @@ def main(conf):
         lit_model, ckpt_path, load_model_ckpt = setup_qh9_finetune_model(conf, pl_model_cls, output_dir)
         
         # Import checkpoint utilities
-        from common.checkpoint_utils import setup_wandb_logger
+        conf.wandb.tags += ["qh9", dataset_abbr(conf.dataset.dataset_full_name)]
         
         # Setup wandb logger
         wandb_logger = setup_wandb_logger(conf, output_dir)

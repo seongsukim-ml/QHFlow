@@ -76,6 +76,8 @@ def main(conf):
         # Get checkpoint path
         ckpt_path = get_checkpoint_path(conf, output_dir)
         
+        conf.wandb.tags += ["md17", conf.dataset.dataset_name]
+
         # Setup wandb logger
         wandb_logger = setup_wandb_logger(conf, output_dir)
         wandb_logger.watch(model=lit_model, log_freq=500)
