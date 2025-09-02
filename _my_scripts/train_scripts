@@ -4,6 +4,12 @@ cd ~/25DFT/QHFlow/src
 # python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
 # CUDA_VISIBLE_DEVICES=2,3 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
 
+## QH9 Baseline
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Stable dataset.split=random wandb.mode=online dataset.total_steps=260000
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Stable dataset.split=size_ood wandb.mode=online dataset.total_steps=260000
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Dynamic dataset.split=geometry wandb.mode=online dataset.total_steps=260000
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Dynamic dataset.split=mol wandb.mode=online dataset.total_steps=260000
+
 ## QH9 400k
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=size_ood wandb.mode=online
@@ -35,8 +41,19 @@ CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 dataset=malondialdehyde w
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 dataset=uracil wandb.mode=online
 
 # MD17 QHFlow / predict
-CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 dataset=water mode=predict model.use_block_S=true
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 dataset=water mode=predict
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 dataset=ethanol mode=predict
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 dataset=malondialdehyde mode=predict
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 dataset=uracil mode=predict
 
+# MD17 QHFlow gauss
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 dataset=water flow.init_p0_type="gauss" prefix="_gauss" wandb.mode=online
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 dataset=ethanol flow.init_p0_type="gauss" prefix="_gauss" wandb.mode=online
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 dataset=malondialdehyde flow.init_p0_type="gauss" prefix="_gauss" wandb.mode=online
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 dataset=uracil flow.init_p0_type="gauss" prefix="_gauss" wandb.mode=online
+
+# MD17 QHFlow gauss / predict
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_md17 dataset=water mode=predict flow.init_p0_type="gauss" prefix="_gauss"
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_md17 dataset=ethanol mode=predict flow.init_p0_type="gauss" prefix="_gauss"
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_md17 dataset=malondialdehyde mode=predict flow.init_p0_type="gauss" prefix="_gauss"
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_md17 dataset=uracil mode=predict flow.init_p0_type="gauss" prefix="_gauss"
