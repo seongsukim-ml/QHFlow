@@ -70,8 +70,8 @@ DEFAULT_MIN_T = 0.01  # Minimum time value to avoid singularities
 TIME_SCALE_MAX_T = 0.9  # Maximum time value for loss scaling
 
 # Time bins for evaluation - used to analyze performance across different time ranges
-TIME_BINS = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.0)]
-
+# TIME_BINS = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.0)]
+TIME_BINS = []
 # Default loss weights for testing different components
 DEFAULT_LOSS_WEIGHTS_MD17 = {
     "hamiltonian": 10.0,
