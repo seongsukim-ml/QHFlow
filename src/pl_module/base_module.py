@@ -1018,7 +1018,7 @@ class LitModel(pl.LightningModule):
                     error_dict[key] = mae
         return error_dict
 
-    def _metric_md17(self, _outputs, _target):
+    def _metric_md17(self, _outputs, _target, cpu=False):
         """Calculate orbital energy and coefficient errors for MD17 dataset with HOMO/LUMO/GAP."""
         metric_weights = {
             "hamiltonian": 1.0,
@@ -1031,11 +1031,12 @@ class LitModel(pl.LightningModule):
         outputs = _outputs
         target = _target.clone()
         
-        for key in outputs.keys():
-            if isinstance(outputs[key], torch.Tensor):
-                outputs[key] = outputs[key].to("cpu")
+        if cpu:
+            for key in outputs.keys():
+                if isinstance(outputs[key], torch.Tensor):
+                    outputs[key] = outputs[key].to("cpu")
 
-        target = target.to("cpu")
+            target = target.to("cpu")
 
         out_ham = outputs["hamiltonian"]
         target_ham = target["hamiltonian"]
