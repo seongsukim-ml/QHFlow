@@ -963,7 +963,7 @@ class LitModel(pl.LightningModule):
     def metric(self, _outputs, _target):
         """Calculate orbital energy and coefficient errors."""
         outputs = _outputs
-        target = _target.clone()
+        target = _target
         
         if self.qh9:
             return self._metric_qh9(outputs, target)
