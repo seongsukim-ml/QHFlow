@@ -1029,13 +1029,13 @@ class LitModel(pl.LightningModule):
             "GAP": 1.0,
         }
         outputs = _outputs
-        target = _target.clone()
+        target = _target
         
-        for key in outputs.keys():
-            if isinstance(outputs[key], torch.Tensor):
-                outputs[key] = outputs[key].to("cpu")
+        # for key in outputs.keys():
+        #     if isinstance(outputs[key], torch.Tensor):
+        #         outputs[key] = outputs[key].to("cpu")
 
-        target = target.to("cpu")
+        # target = target.to("cpu")
 
         out_ham = outputs["hamiltonian"]
         target_ham = target["hamiltonian"]
