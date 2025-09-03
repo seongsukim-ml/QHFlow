@@ -8,7 +8,7 @@ cd ~/25DFT/QHFlow/src
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Stable dataset.split=random wandb.mode=online dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Stable dataset.split=size_ood wandb.mode=online dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Dynamic dataset.split=geometry wandb.mode=online dataset.total_steps=260000
-CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Dynamic dataset.split=mol wandb.mode=online dataset.total_steps=260000
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 --config-name=qhnet dataset=QH9Dynamic dataset.split=mol wandb.mode=online dataset.total_steps=260000 data.grad_norm=0.05 seed=1
 
 ## QH9 400k
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random wandb.mode=online
