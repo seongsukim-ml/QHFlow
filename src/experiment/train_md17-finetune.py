@@ -22,6 +22,9 @@ warnings.filterwarnings("ignore")
 
 from pl_module import get_pl_model
 
+import torch
+torch.set_num_threads(16)
+
 logger = logging.getLogger(__name__)
 
 @hydra.main(config_path="../config_md17", config_name="config_flow-lw10-wa")
