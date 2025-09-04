@@ -27,9 +27,10 @@ from pl_module import get_pl_model
 from pytorch_lightning.utilities.model_summary import ModelSummary
 
 import torch
-torch.set_num_threads(16)
 
 logger = logging.getLogger(__name__)
+logger.info(f"Using torch.set_num_threads(16)")
+torch.set_num_threads(16)
 
 # Mode descriptions
 MODE_DESCRIPTIONS = {

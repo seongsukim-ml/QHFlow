@@ -33,9 +33,10 @@ warnings.filterwarnings("ignore")
 from pl_module import get_pl_model
 
 import torch
-torch.set_num_threads(16)
 
 logger = logging.getLogger(__name__)
+logger.info(f"Using torch.set_num_threads(16)")
+torch.set_num_threads(16)
 
 
 @hydra.main(config_path="../config_qh9", config_name="config_flow-cont-ft-wa")

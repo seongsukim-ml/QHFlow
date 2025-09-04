@@ -61,4 +61,5 @@ flow:
   sigma: 0.1
   num_ode_steps: 3
   num_ode_steps_val: 3
+  num_ode_steps_test: 3
   init_p0_type: "expand"

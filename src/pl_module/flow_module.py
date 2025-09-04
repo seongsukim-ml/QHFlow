@@ -157,7 +157,7 @@ class LitModel_flow(LitModel):
             
         self.num_ode_steps = conf.flow.get("num_ode_steps", default_ode_steps)
         self.num_ode_steps_val = conf.flow.get("num_ode_steps_val", default_ode_steps)
-        self.num_ode_steps_inf = conf.flow.get("num_ode_steps_inf", self.num_ode_steps_val)
+        self.num_ode_steps_test = conf.flow.get("num_ode_steps_test", self.num_ode_steps_val)
         
         # Noise and initialization parameters
         self.init_gauss = conf.flow.get("init_gauss", DEFAULT_INIT_GAUSS)
@@ -1333,12 +1333,12 @@ class LitModel_flow(LitModel):
             # Use QH9-specific test evaluation
             for n_steps in self.log_n_steps_ODE_test:
                 self._log_sample_metric(batch_one, "test", num_timesteps=n_steps, post_fix=f"_{n_steps}")
-            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_inf)
+            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_test)
         else:
             # Standard MD17 evaluation
             for n_steps in self.log_n_steps_ODE_test:
                 self._log_sample_metric(batch_one, "test", num_timesteps=n_steps, post_fix=f"_{n_steps}")
-            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_inf)
+            self._log_sample_metric(batch_one, "test", num_timesteps=self.num_ode_steps_test)
             
         return errors
 
@@ -1363,7 +1363,7 @@ class LitModel_flow(LitModel):
         if self.qh9:
             # assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             # Save predictions
-            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_test)
             sample["hamiltonian"] = self.build_final_matrix(
                 batch_one,
                 sample["hamiltonian_diagonal_blocks"],
@@ -1410,7 +1410,7 @@ class LitModel_flow(LitModel):
                     if hasattr(self, 'output_dir'):
                         torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")
         else:
-            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_inf)
+            sample, traj, _pred = self.sample(batch_one, num_timesteps=self.num_ode_steps_test)
             for i in range(self.cur_batch_size):
                 overlap = batch_one[i]["overlap"].squeeze(0).cpu()
                 atoms = batch_one[i].atoms.squeeze(1).cpu()
@@ -1479,7 +1479,7 @@ class LitModel_flow(LitModel):
         if self.qh9:
             assert self.test_batch_size == 1, "QH9 test batch size must be 1"
             self._log_sample_metric_qh9_mul(
-                batch_one, "pred_mul", num_timesteps=self.num_ode_steps_inf, mul=self.test_mul
+                batch_one, "pred_mul", num_timesteps=self.num_ode_steps_test, mul=self.test_mul
             )
         else:
             raise NotImplementedError("predict-mul is not implemented for md17")
@@ -2062,7 +2062,7 @@ class LitModel_flow(LitModel):
         last_traj = []
         
         logger.info(f"num test data: {len(test_data_loader)}")
-        logger.info(f"num ode steps: {self.num_ode_steps_inf}")
+        logger.info(f"num ode steps: {self.num_ode_steps_test}")
         
         for idx, batch in tqdm(enumerate(test_data_loader)):
             batch = self.post_processing(batch, default_type)
@@ -2072,7 +2072,7 @@ class LitModel_flow(LitModel):
             # Generate samples using flow model
             outputs, traj, _ = self.sample(
                 batch,
-                num_timesteps=self.num_ode_steps_inf,
+                num_timesteps=self.num_ode_steps_test,
                 sample_random=self.sample_random,
             )
             last_traj.append(traj[-1])
@@ -2143,7 +2143,7 @@ class LitModel_flow(LitModel):
                     total_error_dict[key] / total_error_dict["total_items"]
                 )
         last_traj = torch.cat(last_traj, dim=0)
-        logger.info(f"num ode steps: {self.num_ode_steps_inf}")
+        logger.info(f"num ode steps: {self.num_ode_steps_test}")
         return total_error_dict, last_traj
 
     @torch.no_grad()
@@ -2175,7 +2175,7 @@ class LitModel_flow(LitModel):
             # Generate samples
             outputs, traj, _ = self.sample(
                 batch,
-                num_timesteps=self.num_ode_steps_inf,
+                num_timesteps=self.num_ode_steps_test,
                 sample_random=self.sample_random,
             )
 

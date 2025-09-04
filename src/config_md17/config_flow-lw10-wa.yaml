@@ -53,7 +53,8 @@ pl_type: 'flow_finetune'
 flow:
   batch_mul : 1
   use_t_scale: False
-  num_ode_steps_val: 20
+  num_ode_steps_val: 1
+  num_ode_steps_test: 3
   init_gauss: True
   init_gauss_center: False
   use_mse_and_mae: ${use_mse_and_mae}

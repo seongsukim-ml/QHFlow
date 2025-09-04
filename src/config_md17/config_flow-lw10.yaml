@@ -46,6 +46,7 @@ ckpt: ''
 flow:
   batch_mul : 1
   num_ode_steps_val: 1
+  num_ode_steps_test: 3
   log_n_steps_ODE_val: [1]
   init_gauss: True
   init_gauss_center: False
