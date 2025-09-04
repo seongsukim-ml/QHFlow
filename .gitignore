@@ -29,3 +29,4 @@ src/timer.dat
 debug_outputs/
 .cursorrc
 /.cursor
+*.csv
