@@ -343,10 +343,27 @@ class QH9Stable(InMemoryDataset):
         
         # Return cached environment if available
         if shard_idx in self._db_envs:
-            return self._db_envs[shard_idx]
+            try:
+                # Test if the environment is still valid
+                with self._db_envs[shard_idx].begin() as txn:
+                    txn.stat()  # This will raise an exception if the env is invalid
+                return self._db_envs[shard_idx]
+            except Exception:
+                # Environment is invalid, remove it from cache
+                try:
+                    self._db_envs[shard_idx].close()
+                except:
+                    pass
+                del self._db_envs[shard_idx]
         
         # Create new environment and cache it
-        db_env = lmdb.open(self.lmdb_path_list[shard_idx], readonly=True, lock=False)
+        db_env = lmdb.open(
+            self.lmdb_path_list[shard_idx], 
+            readonly=True, 
+            lock=False,
+            max_readers=1024,  # Increase max readers
+            readahead=False    # Disable readahead for better concurrent access
+        )
         self._db_envs[shard_idx] = db_env
         return db_env
     
@@ -355,19 +372,44 @@ class QH9Stable(InMemoryDataset):
         
         # Get cached LMDB environment (no need for context manager since we're reusing connections)
         db_env = self._get_shard_db_env(idx)
-        with db_env.begin() as txn:
-            # Pre-create key for reuse
-            key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
-            data_dict = txn.get(key)
-            
-            if data_dict is None:
-                print(self.get_key_list(idx))
-                raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
+        
+        try:
+            with db_env.begin() as txn:
+                # Pre-create key for reuse
+                key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
+                data_dict = txn.get(key)
                 
-            data_dict = pickle.loads(data_dict)
+                if data_dict is None:
+                    print(self.get_key_list(idx))
+                    raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
+                    
+                data_dict = pickle.loads(data_dict)
+                
+                data = self.get_mol(data_dict, orb_energy_and_coeff=True)
+            return data
+        except Exception as e:
+            # If there's an error, try to refresh the LMDB environment
+            logger.warning(f"Error accessing LMDB for idx {idx}: {e}. Attempting to refresh environment.")
+            shard_idx = self.shard_idx_list[idx]
+            if shard_idx in self._db_envs:
+                try:
+                    self._db_envs[shard_idx].close()
+                except:
+                    pass
+                del self._db_envs[shard_idx]
             
-            data = self.get_mol(data_dict, orb_energy_and_coeff=True)
-        return data
+            # Retry with fresh environment
+            db_env = self._get_shard_db_env(idx)
+            with db_env.begin() as txn:
+                key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
+                data_dict = txn.get(key)
+                
+                if data_dict is None:
+                    raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
+                    
+                data_dict = pickle.loads(data_dict)
+                data = self.get_mol(data_dict, orb_energy_and_coeff=True)
+            return data
     
     def get_key_list(self, idx):
         db_env = self._get_shard_db_env(idx)
@@ -380,7 +422,7 @@ class QH9Stable(InMemoryDataset):
     
     def _close_db_envs(self):
         """Safely close all cached LMDB environments."""
-        for shard_idx, db_env in self._db_envs.items():
+        for shard_idx, db_env in list(self._db_envs.items()):
             try:
                 db_env.close()
             except Exception as e:
@@ -868,10 +910,27 @@ class QH9Dynamic(InMemoryDataset):
         
         # Return cached environment if available
         if shard_idx in self._db_envs:
-            return self._db_envs[shard_idx]
+            try:
+                # Test if the environment is still valid
+                with self._db_envs[shard_idx].begin() as txn:
+                    txn.stat()  # This will raise an exception if the env is invalid
+                return self._db_envs[shard_idx]
+            except Exception:
+                # Environment is invalid, remove it from cache
+                try:
+                    self._db_envs[shard_idx].close()
+                except:
+                    pass
+                del self._db_envs[shard_idx]
         
         # Create new environment and cache it
-        db_env = lmdb.open(self.lmdb_path_list[shard_idx], readonly=True, lock=False)
+        db_env = lmdb.open(
+            self.lmdb_path_list[shard_idx], 
+            readonly=True, 
+            lock=False,
+            max_readers=1024,  # Increase max readers
+            readahead=False    # Disable readahead for better concurrent access
+        )
         self._db_envs[shard_idx] = db_env
         return db_env
     
@@ -904,7 +963,7 @@ class QH9Dynamic(InMemoryDataset):
     
     def _close_db_envs(self):
         """Safely close all cached LMDB environments."""
-        for shard_idx, db_env in self._db_envs.items():
+        for shard_idx, db_env in list(self._db_envs.items()):
             try:
                 db_env.close()
             except Exception as e:
