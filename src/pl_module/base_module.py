@@ -63,6 +63,7 @@ KCALMOL2EV = 0.04336414  # kcal/mol to electron volts
 # Orbital convention configurations for different quantum chemistry software packages
 # These handle the different ways software packages order and sign p and d orbitals
 # ex) "p": [1,2,0] implies [a,b,c] -> [c(0),a(1),b(2)]
+convention_dict = get_convention_dict()
 class LitModel(pl.LightningModule):
     """
     PyTorch Lightning module for quantum chemistry Hamiltonian prediction.
@@ -113,7 +114,7 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters()
         self._epoch_start_time = None
         self.set(device)
-        self.convention_dict = get_convention_dict()
+        self.convention_dict = convention_dict
         
         # Logging
         logger.info(f"use_init_hamiltonian: {self.use_init_hamiltonian}")
@@ -317,6 +318,7 @@ class LitModel(pl.LightningModule):
         else:
             return self._test_step_standard(batch, batch_idx)  # Default to standard test
 
+    # Need to check the correctness of the inference step
     def _inference_step(self, batch, batch_idx):
         """Inference step with SCF calculations."""
         batch = self.post_processing(batch, self.default_type)
@@ -335,10 +337,6 @@ class LitModel(pl.LightningModule):
                 batch_one[0].diagonal_hamiltonian,
                 batch_one[0].non_diagonal_hamiltonian,
             )
-            # batch_ham = batch_ham.cpu().numpy()
-            # batch_one.hamiltonian = (
-            #     torch.tensor(batch_ham).to(self.device).to(self.default_type)
-            # )
             batch_one.hamiltonian = batch_ham.clone()
             batch_ham = batch_ham.cpu()
         else:
@@ -363,7 +361,6 @@ class LitModel(pl.LightningModule):
                 batch.atoms,
                 convention="pyscf_def2svp",
             ).unsqueeze(0).to(self.device)
-            # ham_calc = torch.tensor(ham_calc).unsqueeze(0).to(self.device)
             ham_calc_error = (ham_calc - batch_one.hamiltonian).abs().mean()
             e_tot_calc = init_scf_ret["e_tot"]
 
@@ -476,7 +473,7 @@ class LitModel(pl.LightningModule):
                     "overlap": gt_overlap[i].cpu(),
                     "pos": batch[i].pos.cpu(),
                     "atoms": batch[i].atoms.cpu(),
-                    "format":"pyscf",
+                    "format":"pyscf_def2svp",
                     "length_unit":"angstrom",
                 }
                 if hasattr(self, 'output_dir'):
@@ -487,7 +484,7 @@ class LitModel(pl.LightningModule):
                         "overlap": gt_overlap[i].cpu(),
                         "pos": batch[i].pos.cpu(),
                         "atoms": batch[i].atoms.cpu(),
-                        "format":"pyscf",
+                        "format":"pyscf_def2svp",
                         "length_unit":"angstrom",
                     }
                     if hasattr(self, 'output_dir'):
@@ -503,7 +500,7 @@ class LitModel(pl.LightningModule):
                     "overlap": overlap,                   
                     "pos": pos,
                     "atoms": atoms,
-                    "format":"dev2svp", # Need to change to pyscf for dft calculation
+                    "format":"e3nn", # Need to change to pyscf for dft calculation
                     "length_unit":"bohr", # Need to change to angstrom for dft calculation
                 }
                 if hasattr(self, 'output_dir'):
@@ -514,7 +511,7 @@ class LitModel(pl.LightningModule):
                         "overlap": overlap,
                         "pos": pos,
                         "atoms": atoms,
-                        "format":"dev2svp", # Need to change to pyscf for dft calculation
+                        "format":"e3nn", # Need to change to pyscf for dft calculation
                         "length_unit":"bohr", # Need to change to angstrom for dft calculation
                     }
                     if hasattr(batch[i], "init_ham"):
@@ -1164,7 +1161,7 @@ class LitModel(pl.LightningModule):
             elif init_dm_style == "1e":
                 dm0 = pyscf.scf.hf.init_guess_by_1e(mol)
 
-        ret = build_matrix(mol, dm0=dm0, qh9=self.qh9)
+        ret = build_fock_matrix(mol, dm0=dm0, qh9=self.qh9)
         return ret
 
     def calc_dm0_from_ham(self, batch, overlap_pyscf, cur_ham):
@@ -1250,7 +1247,7 @@ class LitModel(pl.LightningModule):
             results["sample_time_per_batch"] = sample["sample_time_per_batch"]
             
         if init_cycle is not None:
-            scf_ret = build_matrix(
+            scf_ret = build_fock_matrix(
                 sample["mol"],
                 dm0=sample["dm_last"],
                 error_level=ham_error,
@@ -1552,7 +1549,7 @@ def get_total_cycles(envs):
     getattr(envs["mf"], "info").append(info)
 
 
-def build_matrix(
+def build_fock_matrix(
     mol,
     dm0=None,
     error_level=None,

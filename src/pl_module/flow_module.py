@@ -31,9 +31,9 @@ from concurrent.futures import ThreadPoolExecutor
 import pyscf
 from pyscf import dft
 
-from pl_module.base_module import LitModel, convention_dict
+from pl_module.base_module import LitModel, convention_dict, build_fock_matrix
 from torch_geometric.data import Batch
-from utils import AOData, WDs, WDs_batch, Expansion, get_total_cycles, build_matrix
+from utils import AOData, WDs, WDs_batch, Expansion, get_total_cycles
 from e3nn import o3
 import os
 
@@ -1393,7 +1393,7 @@ class LitModel_flow(LitModel):
                     "overlap": gt_overlap[i].cpu(),
                     "pos": batch_one[i].pos.cpu(),
                     "atoms": batch_one[i].atoms.squeeze(1).cpu(),
-                    "format":"pyscf",
+                    "format":"pyscf_def2svp",
                     "length_unit":"angstrom",
                 }
                 if hasattr(self, 'output_dir'):
@@ -1404,7 +1404,7 @@ class LitModel_flow(LitModel):
                         "overlap": gt_overlap[i].cpu(),
                         "pos": batch_one[i].pos.cpu(),
                         "atoms": batch_one[i].atoms.squeeze(1).cpu(),
-                        "format":"pyscf",
+                        "format":"pyscf_def2svp",
                         "length_unit":"angstrom",
                     }
                     if hasattr(self, 'output_dir'):
@@ -1420,7 +1420,7 @@ class LitModel_flow(LitModel):
                     "overlap": overlap,                   
                     "pos": pos,
                     "atoms": atoms,
-                    "format":"dev2svp", # Need to change to pyscf for dft calculation
+                    "format":"e3nn", # Need to change to pyscf for dft calculation
                     "length_unit":"bohr", # Need to change to angstrom for dft calculation
                 }
                 if hasattr(self, 'output_dir'):
@@ -1431,7 +1431,7 @@ class LitModel_flow(LitModel):
                         "overlap": overlap,
                         "pos": pos,
                         "atoms": atoms,
-                        "format":"dev2svp", # Need to change to pyscf for dft calculation
+                        "format":"e3nn", # Need to change to pyscf for dft calculation
                         "length_unit":"bohr" # Need to change to angstrom for dft calculation
                     }
                     if hasattr(batch_one[i], "init_ham"):
@@ -1927,7 +1927,7 @@ class LitModel_flow(LitModel):
             results["sample_time_per_batch"] = sample["sample_time_per_batch"]
             
         if init_cycle is not None:
-            scf_ret = build_matrix(
+            scf_ret = build_fock_matrix(
                 sample["mol"],
                 dm0=sample["dm_last"],
                 error_level=ham_error,
