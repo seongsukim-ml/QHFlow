@@ -72,7 +72,7 @@ convention_dict["back2pyscf"] = convention_dict["e3nn_to_pyscf_def2svp"]
 convention_dict["pyscf_def2svp"] = convention_dict["pyscf_def2svp_to_e3nn"]
 convention_dict["pyscf_631G"] = convention_dict["pyscf_631G_to_e3nn"]
 
-def get_convetion_dict():
+def get_convention_dict():
     return convention_dict
 
 def _get_orbital_mask(ORBITAL_1S_2S_INDICES = None, ORBITAL_2P_INDICES = None, ORBITAL_MASK_SIZE_LINE2 = None):
@@ -217,3 +217,342 @@ def _matrix_transform_single(hamiltonian, atoms, convention_rule):
     hamiltonian_new = hamiltonian_new * transform_signs.unsqueeze(-2)
 
     return hamiltonian_new
+
+def cut_matrix(matrix, atoms, orbital_mask, full_orbitals, last_dim=False):
+    """
+    Cut matrix into atomic blocks with optimized performance.
+    
+    This function takes a molecular orbital matrix and splits it into atomic blocks.
+    Each block represents interactions between specific atoms. The matrix is divided
+    into diagonal blocks (same atom interactions) and non-diagonal blocks (different atom interactions).
+    
+    Algorithm Overview:
+        Input matrix structure for CH3 molecule (C=5 orbitals, H=2 orbitals each):
+        
+        Full Matrix (11x11):
+        ┌─────────────────────────────────────────┐
+        │ C-C │ C-H │ C-H │ C-H │  ← C interactions
+        ├─────┼─────┼─────┼─────┤
+        │ H-C │ H-H │ H-H │ H-H │  ← H1 interactions  
+        ├─────┼─────┼─────┼─────┤
+        │ H-C │ H-H │ H-H │ H-H │  ← H2 interactions
+        ├─────┼─────┼─────┼─────┤
+        │ H-C │ H-H │ H-H │ H-H │  ← H3 interactions
+        └─────────────────────────────────────────┘
+        
+        Output blocks:
+        - Diagonal: [C-C(5x5), H-H(2x2), H-H(2x2), H-H(2x2)]
+        - Non-diagonal: [C-H(5x2), C-H(5x2), C-H(5x2), H-C(2x5), H-C(2x5), H-C(2x5), ...]
+    
+    Example:
+        For a molecule with atoms [C, H, H, H], the matrix is split into:
+        - Diagonal blocks: C-C, H-H, H-H, H-H interactions
+        - Non-diagonal blocks: C-H, H-C, H-H (different atoms) interactions
+    
+    Args:
+        matrix: Input matrix tensor of shape (n_orb, n_orb) or (n_orb, n_orb, n_features)
+               - 2D: Single property matrix (e.g., Hamiltonian, overlap)
+               - 3D: Multiple property matrices stacked along last dimension
+        atoms: Atomic numbers tensor (e.g., [6, 1, 1, 1] for CH3)
+        orbital_mask: Dictionary mapping atomic numbers to orbital indices
+                     e.g., {6: [0,1,2,3,4], 1: [0,1]} for C(5 orbitals) and H(2 orbitals)
+        full_orbitals: Maximum number of orbitals per atom (used for padding)
+        
+    Returns:
+        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index)
+            - diagonal_blocks: Blocks for same-atom interactions
+            - non_diagonal_blocks: Blocks for different-atom interactions  
+            - diagonal_masks: Binary masks indicating valid orbital positions in diagonal blocks
+            - non_diagonal_masks: Binary masks indicating valid orbital positions in non-diagonal blocks
+            - edge_index: Graph connectivity (which atoms interact with which)
+    """
+    # Fast dispatch based on matrix dimensions (no type checking for performance)
+    # This avoids runtime overhead of isinstance() and shape validation
+    if len(matrix.shape) == 2:
+        return _cut_matrix_2d(matrix, atoms, orbital_mask, full_orbitals)
+    else:
+        if last_dim:
+            return _cut_matrix_3d_last(matrix, atoms, orbital_mask, full_orbitals)
+        else:
+            return _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals)
+
+def _cut_matrix_2d(matrix, atoms, orbital_mask, full_orbitals):
+    """
+    Optimized 2D matrix cutting - no runtime checks for maximum performance.
+    
+    This function processes 2D matrices (single property like Hamiltonian or overlap matrix).
+    It's separated from 3D case to avoid conditional checks in the hot loop.
+    """
+    # Get tensor properties once to avoid repeated access
+    device = matrix.device
+    dtype = matrix.dtype
+    
+    # Pre-allocate lists for better memory efficiency
+    # These will store the final atomic blocks
+    diagonal_blocks = []      # Same-atom interactions (e.g., C-C, H-H)
+    non_diagonal_blocks = []  # Different-atom interactions (e.g., C-H, H-C)
+    diagonal_masks = []       # Binary masks for diagonal blocks
+    non_diagonal_masks = []   # Binary masks for non-diagonal blocks
+    edge_indices = []         # Graph connectivity information
+    
+    # Pre-compute values to avoid repeated .item() calls in loops
+    # This is a key optimization - .item() is expensive when called repeatedly
+    atom_values = [atom.item() for atom in atoms]
+    orbital_masks = [orbital_mask[atom_val] for atom_val in atom_values]
+    orbital_lengths = [len(mask) for mask in orbital_masks]
+    
+    # Matrix cutting algorithm:
+    # We iterate through all atom pairs (src_idx, dst_idx) and extract
+    # the corresponding submatrix from the full orbital matrix
+    col_idx = 0  # Column index in the full matrix
+    
+    for src_idx, (src_mask, src_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+        row_idx = 0  # Row index in the full matrix
+        
+        for dst_idx, (dst_mask, dst_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+            # Build edge index for graph representation
+            # Only non-diagonal pairs create edges (different atoms)
+            if src_idx != dst_idx:
+                edge_indices.append([dst_idx, src_idx])  # [source, target] format
+            
+            # Create empty blocks with proper shape and device/dtype
+            # full_orbitals is used for padding to ensure all blocks have same size
+            matrix_block = torch.zeros((full_orbitals, full_orbitals), device=device, dtype=dtype)
+            matrix_block_mask = torch.zeros((full_orbitals, full_orbitals), device=device, dtype=dtype)
+            
+            # Extract the relevant submatrix from the full matrix
+            # This is the actual orbital interaction data between src and dst atoms
+            extracted_matrix = matrix[row_idx:row_idx + dst_length, col_idx:col_idx + src_length]
+            
+            # Fill the block using orbital masks
+            # dst_mask and src_mask specify which orbitals are actually present
+            matrix_block[dst_mask, src_mask] = extracted_matrix
+            matrix_block_mask[dst_mask, src_mask] = 1  # Mark valid positions
+            
+            # Store blocks based on whether they're diagonal or not
+            if src_idx == dst_idx:
+                # Same atom interactions (diagonal blocks)
+                diagonal_blocks.append(matrix_block)
+                diagonal_masks.append(matrix_block_mask)
+            else:
+                # Different atom interactions (non-diagonal blocks)
+                non_diagonal_blocks.append(matrix_block)
+                non_diagonal_masks.append(matrix_block_mask)
+            
+            # Move to next row block
+            row_idx += dst_length
+        
+        # Move to next column block
+        col_idx += src_length
+    
+    # Convert edge indices to tensor format expected by PyTorch Geometric
+    # Transpose to get [2, n_edges] format: [[source_nodes], [target_nodes]]
+    if edge_indices:
+        edge_index_tensor = torch.tensor(edge_indices, device=device).transpose(-1, -2)
+    else:
+        # Handle edge case of no edges (shouldn't happen in practice)
+        edge_index_tensor = torch.empty((2, 0), device=device, dtype=torch.long)
+    
+    # Stack all blocks into tensors for efficient batch processing
+    return (
+        torch.stack(diagonal_blocks, dim=0),      # [n_atoms, full_orbitals, full_orbitals]
+        torch.stack(non_diagonal_blocks, dim=0),  # [n_edges, full_orbitals, full_orbitals]
+        torch.stack(diagonal_masks, dim=0),       # [n_atoms, full_orbitals, full_orbitals]
+        torch.stack(non_diagonal_masks, dim=0),   # [n_edges, full_orbitals, full_orbitals]
+        edge_index_tensor,                        # [2, n_edges]
+    )
+
+
+def _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals):
+    """
+    Optimized 3D matrix cutting - no runtime checks for maximum performance.
+    
+    This function processes 3D matrices where multiple properties are stacked
+    along the first dimension (e.g., [Hamiltonian, overlap, kinetic_energy]).
+    The algorithm is identical to 2D case but handles the extra dimension.
+    """
+    # Get tensor properties once to avoid repeated access
+    device = matrix.device
+    dtype = matrix.dtype
+    n_features = matrix.shape[0]  # Number of properties stacked along first dimension
+    
+    # Pre-allocate lists for better memory efficiency
+    # These will store the final atomic blocks
+    diagonal_blocks = []      # Same-atom interactions (e.g., C-C, H-H)
+    non_diagonal_blocks = []  # Different-atom interactions (e.g., C-H, H-C)
+    diagonal_masks = []       # Binary masks for diagonal blocks
+    non_diagonal_masks = []   # Binary masks for non-diagonal blocks
+    edge_indices = []         # Graph connectivity information
+    
+    # Pre-compute values to avoid repeated .item() calls in loops
+    # This is a key optimization - .item() is expensive when called repeatedly
+    atom_values = [atom.item() for atom in atoms]
+    orbital_masks = [orbital_mask[atom_val] for atom_val in atom_values]
+    orbital_lengths = [len(mask) for mask in orbital_masks]
+    
+    # Matrix cutting algorithm (same as 2D but with extra dimension):
+    # We iterate through all atom pairs (src_idx, dst_idx) and extract
+    # the corresponding submatrix from the full orbital matrix
+    col_idx = 0  # Column index in the full matrix
+    
+    for src_idx, (src_mask, src_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+        row_idx = 0  # Row index in the full matrix
+        
+        for dst_idx, (dst_mask, dst_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+            # Build edge index for graph representation
+            # Only non-diagonal pairs create edges (different atoms)
+            if src_idx != dst_idx:
+                edge_indices.append([dst_idx, src_idx])  # [source, target] format
+            
+            # Create empty blocks with proper shape and device/dtype
+            # Note: 3D blocks have shape (n_features, full_orbitals, full_orbitals)
+            matrix_block = torch.zeros((n_features, full_orbitals, full_orbitals), device=device, dtype=dtype)
+            matrix_block_mask = torch.zeros((n_features, full_orbitals, full_orbitals), device=device, dtype=dtype)
+            
+            # Extract the relevant submatrix from the full matrix
+            # This extracts all properties for the interaction between src and dst atoms
+            extracted_matrix = matrix[:, row_idx:row_idx + dst_length, col_idx:col_idx + src_length]
+            
+            # Fill the block using orbital masks
+            # dst_mask and src_mask specify which orbitals are actually present
+            # The : at the beginning preserves all feature dimensions
+            # Use advanced indexing to properly assign values
+            matrix_block[:, dst_mask[:, None], src_mask] = extracted_matrix
+            matrix_block_mask[:, dst_mask[:, None], src_mask] += 1  # Mark valid positions
+            
+            # Store blocks based on whether they're diagonal or not
+            if src_idx == dst_idx:
+                # Same atom interactions (diagonal blocks)
+                diagonal_blocks.append(matrix_block)
+                diagonal_masks.append(matrix_block_mask)
+            else:
+                # Different atom interactions (non-diagonal blocks)
+                non_diagonal_blocks.append(matrix_block)
+                non_diagonal_masks.append(matrix_block_mask)
+            
+            # Move to next row block
+            row_idx += dst_length
+        
+        # Move to next column block
+        col_idx += src_length
+    
+    # Convert edge indices to tensor format expected by PyTorch Geometric
+    # Transpose to get [2, n_edges] format: [[source_nodes], [target_nodes]]
+    if edge_indices:
+        edge_index_tensor = torch.tensor(edge_indices, device=device).transpose(-1, -2)
+    else:
+        # Handle edge case of no edges (shouldn't happen in practice)
+        edge_index_tensor = torch.empty((2, 0), device=device, dtype=torch.long)
+    
+    # Stack all blocks into tensors for efficient batch processing
+    return (
+        torch.stack(diagonal_blocks, dim=0),      # [n_atoms, n_features, full_orbitals, full_orbitals]
+        torch.stack(non_diagonal_blocks, dim=0),  # [n_edges, n_features, full_orbitals, full_orbitals]
+        torch.stack(diagonal_masks, dim=0),       # [n_atoms, n_features, full_orbitals, full_orbitals]
+        torch.stack(non_diagonal_masks, dim=0),   # [n_edges, n_features, full_orbitals, full_orbitals]
+        edge_index_tensor,                        # [2, n_edges]
+    )
+
+def _cut_matrix_3d_last(matrix, atoms, orbital_mask, full_orbitals):
+    """
+    Optimized 3D matrix cutting - no runtime checks for maximum performance.
+    
+    This function processes 3D matrices where multiple properties are stacked
+    along the last dimension (e.g., [Hamiltonian, overlap, kinetic_energy]).
+    The algorithm is identical to 2D case but handles the extra dimension.
+    """
+    # Get tensor properties once to avoid repeated access
+    device = matrix.device
+    dtype = matrix.dtype
+    n_features = matrix.shape[-1]  # Number of properties stacked along last dimension
+    
+    # Pre-allocate lists for better memory efficiency
+    # These will store the final atomic blocks
+    diagonal_blocks = []      # Same-atom interactions (e.g., C-C, H-H)
+    non_diagonal_blocks = []  # Different-atom interactions (e.g., C-H, H-C)
+    diagonal_masks = []       # Binary masks for diagonal blocks
+    non_diagonal_masks = []   # Binary masks for non-diagonal blocks
+    edge_indices = []         # Graph connectivity information
+    
+    # Pre-compute values to avoid repeated .item() calls in loops
+    # This is a key optimization - .item() is expensive when called repeatedly
+    atom_values = [atom.item() for atom in atoms]
+    orbital_masks = [orbital_mask[atom_val] for atom_val in atom_values]
+    orbital_lengths = [len(mask) for mask in orbital_masks]
+    
+    # Matrix cutting algorithm (same as 2D but with extra dimension):
+    # We iterate through all atom pairs (src_idx, dst_idx) and extract
+    # the corresponding submatrix from the full orbital matrix
+    col_idx = 0  # Column index in the full matrix
+    
+    for src_idx, (src_mask, src_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+        row_idx = 0  # Row index in the full matrix
+        
+        for dst_idx, (dst_mask, dst_length) in enumerate(zip(orbital_masks, orbital_lengths)):
+            # Build edge index for graph representation
+            # Only non-diagonal pairs create edges (different atoms)
+            if src_idx != dst_idx:
+                edge_indices.append([dst_idx, src_idx])  # [source, target] format
+            
+            # Create empty blocks with proper shape and device/dtype
+            # Note: 3D blocks have shape (n_features, full_orbitals, full_orbitals)
+            matrix_block = torch.zeros((full_orbitals, full_orbitals, n_features), device=device, dtype=dtype)
+            matrix_block_mask = torch.zeros((full_orbitals, full_orbitals, n_features), device=device, dtype=dtype)
+            
+            # Extract the relevant submatrix from the full matrix
+            # This extracts all properties for the interaction between src and dst atoms
+            extracted_matrix = matrix[row_idx:row_idx + dst_length, col_idx:col_idx + src_length, :]
+            
+            # Fill the block using orbital masks
+            # dst_mask and src_mask specify which orbitals are actually present
+            # The : at the beginning preserves all feature dimensions
+            # Use advanced indexing to properly assign values
+            matrix_block[dst_mask[:, None], src_mask, :] = extracted_matrix
+            matrix_block_mask[dst_mask[:, None], src_mask, :] = 1  # Mark valid positions
+            
+            # Store blocks based on whether they're diagonal or not
+            if src_idx == dst_idx:
+                # Same atom interactions (diagonal blocks)
+                diagonal_blocks.append(matrix_block)
+                diagonal_masks.append(matrix_block_mask)
+            else:
+                # Different atom interactions (non-diagonal blocks)
+                non_diagonal_blocks.append(matrix_block)
+                non_diagonal_masks.append(matrix_block_mask)
+            
+            # Move to next row block
+            row_idx += dst_length
+        
+        # Move to next column block
+        col_idx += src_length
+    
+    # Convert edge indices to tensor format expected by PyTorch Geometric
+    # Transpose to get [2, n_edges] format: [[source_nodes], [target_nodes]]
+    if edge_indices:
+        edge_index_tensor = torch.tensor(edge_indices, device=device).transpose(-1, -2)
+    else:
+        # Handle edge case of no edges (shouldn't happen in practice)
+        edge_index_tensor = torch.empty((2, 0), device=device, dtype=torch.long)
+    
+    # Stack all blocks into tensors for efficient batch processing
+    return (
+        torch.stack(diagonal_blocks, dim=0),      # [n_atoms, full_orbitals, full_orbitals, n_features]
+        torch.stack(non_diagonal_blocks, dim=0),  # [n_edges, full_orbitals, full_orbitals, n_features]
+        torch.stack(diagonal_masks, dim=0),       # [n_atoms, full_orbitals, full_orbitals, n_features]
+        torch.stack(non_diagonal_masks, dim=0),   # [n_edges, full_orbitals, full_orbitals, n_features]
+        edge_index_tensor,                        # [2, n_edges]
+    )
+
+
+def pack_upper_triangle(M: np.ndarray):
+    assert M.ndim == 2 and M.shape[0] == M.shape[1]
+    n = M.shape[0]
+    idx = np.triu_indices(n)
+    return M[idx].astype(np.float64), n
+
+def unpack_upper_triangle(packed: np.ndarray, n: int):
+    M = np.zeros((n,n), dtype=packed.dtype)
+    iu = np.triu_indices(n)
+    M[iu] = packed
+    M[(iu[1], iu[0])] = packed  # mirror
+    return M

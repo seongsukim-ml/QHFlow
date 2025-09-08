@@ -28,7 +28,7 @@ MODE_DICT = {
 
 # Ex: /mnt/QHFlow/src
 DEFAULT_SRC_PATH  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-DEFAULT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_DATASET_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 
 def setup_paths(src_path: str=None):
     """Setup Python path and get src directory."""
@@ -66,15 +66,19 @@ def setup_tensor_type_and_seed(conf: DictConfig):
     pl.seed_everything(seed)
 
 
-def get_root_path(conf: DictConfig=None):
+def get_dataset_path(conf: DictConfig=None):
     """Get the root path for dataset loading."""
-    root_path = DEFAULT_ROOT_PATH if conf is None else conf.get("root_path", DEFAULT_ROOT_PATH)
-    logger.info(f"Root path: {root_path}")
-    if not os.path.exists(root_path):
-        logger.error(f"Root path {root_path} does not exist")
-        raise FileNotFoundError(f"Root path {root_path} does not exist")
-    return root_path
+    data_path = DEFAULT_DATASET_PATH if conf is None else conf.get("dataset_path", DEFAULT_DATASET_PATH)
+    logger.info(f"Dataset path: {data_path}")
+    if not os.path.exists(data_path):
+        logger.error(f"Dataset path {data_path} does not exist")
+        raise FileNotFoundError(f"Dataset path {data_path} does not exist")
+    return data_path
 
+
+""" Deprecated """
+def get_root_path(conf: DictConfig=None):
+    return get_dataset_path(conf)
 
 def get_mode(conf: DictConfig):
     """Get the current mode from configuration."""

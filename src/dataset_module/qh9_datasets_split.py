@@ -1243,7 +1243,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--root",
         type=str,
-        default="/home/holywater2/25DFT/QHFlow/dataset",
+        default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dataset"),
     )
     parser.add_argument("--name", type=str, default="QH9Stable")
     parser.add_argument("--version", type=str, default="300k")
@@ -1253,7 +1253,7 @@ if __name__ == "__main__":
     parser.add_argument("--prefix", type=str, default="")
     parser.add_argument("--pdb", action="store_true", default=False)
 
-
+    print(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dataset"))
     args = parser.parse_args()
     assert args.name in ["QH9Stable", "QH9Dynamic"]
     if args.name == "QH9Stable":
