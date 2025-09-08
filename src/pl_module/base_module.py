@@ -21,6 +21,7 @@ import os
 import pyscf
 from pyscf import dft
 from common.metric import cal_orbital_and_energies, cal_orbital_and_energies_variable_size_grouped
+from common.matrix_transforms import get_convention_dict, _build_final_matrix, _matrix_transform_list, _matrix_transform_single
 
 # ==========================================        
 # Constants and Configuration
@@ -55,59 +56,13 @@ EIGENVALUE_TOLERANCE = 1e-8
 DEFAULT_MAX_SCF_CYCLES = 50
 DEFAULT_DFT_GRID_LEVEL = 3
 
-# Convention dictionaries for orbital transformations
-convention_dict = {
-    "pyscf_631G": Namespace(
-        atom_to_orbitals_map={1: "ss", 6: "ssspp", 7: "ssspp", 8: "ssspp", 9: "ssspp"},
-        orbital_idx_map={"s": [0], "p": [2, 0, 1], "d": [0, 1, 2, 3, 4]},
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
-        orbital_order_map={
-            1: [0, 1],
-            6: [0, 1, 2, 3, 4],
-            7: [0, 1, 2, 3, 4],
-            8: [0, 1, 2, 3, 4],
-            9: [0, 1, 2, 3, 4],
-        },
-    ),
-    "pyscf_def2svp": Namespace(
-        atom_to_orbitals_map={
-            1: "ssp",
-            6: "sssppd",
-            7: "sssppd",
-            8: "sssppd",
-            9: "sssppd",
-        },
-        orbital_idx_map={"s": [0], "p": [1, 2, 0], "d": [0, 1, 2, 3, 4]},
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
-        orbital_order_map={
-            1: [0, 1, 2],
-            6: [0, 1, 2, 3, 4, 5],
-            7: [0, 1, 2, 3, 4, 5],
-            8: [0, 1, 2, 3, 4, 5],
-            9: [0, 1, 2, 3, 4, 5],
-        },
-    ),
-    "back2pyscf": Namespace(
-        atom_to_orbitals_map={
-            1: "ssp",
-            6: "sssppd",
-            7: "sssppd",
-            8: "sssppd",
-            9: "sssppd",
-        },
-        orbital_idx_map={"s": [0], "p": [2, 0, 1], "d": [0, 1, 2, 3, 4]},
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
-        orbital_order_map={
-            1: [0, 1, 2],
-            6: [0, 1, 2, 3, 4, 5],
-            7: [0, 1, 2, 3, 4, 5],
-            8: [0, 1, 2, 3, 4, 5],
-            9: [0, 1, 2, 3, 4, 5],
-        },
-    ),
-}
+# Conversion factors for energy units
+HAR2EV = 27.211386246  # Hartree to electron volts
+KCALMOL2EV = 0.04336414  # kcal/mol to electron volts
 
-
+# Orbital convention configurations for different quantum chemistry software packages
+# These handle the different ways software packages order and sign p and d orbitals
+# ex) "p": [1,2,0] implies [a,b,c] -> [c(0),a(1),b(2)]
 class LitModel(pl.LightningModule):
     """
     PyTorch Lightning module for quantum chemistry Hamiltonian prediction.
@@ -158,7 +113,7 @@ class LitModel(pl.LightningModule):
         self.save_hyperparameters()
         self._epoch_start_time = None
         self.set(device)
-        self.convention_dict = convention_dict
+        self.convention_dict = get_convention_dict()
         
         # Logging
         logger.info(f"use_init_hamiltonian: {self.use_init_hamiltonian}")
@@ -496,14 +451,14 @@ class LitModel(pl.LightningModule):
                 outputs["hamiltonian_diagonal_blocks"],
                 outputs["hamiltonian_non_diagonal_blocks"],
                 transform=True,
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
             gt_overlap = self.build_final_matrix(
                 batch,
                 batch.diagonal_overlap,
                 batch.non_diagonal_overlap,
                 transform=True,
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
             
             if self._batch_has_ground_truth_hamiltonian(batch):
@@ -512,7 +467,7 @@ class LitModel(pl.LightningModule):
                     batch.diagonal_hamiltonian,
                     batch.non_diagonal_hamiltonian,
                     transform=True,
-                    convention="back2pyscf",
+                    convention="e3nn_to_pyscf_def2svp",
                 )                
             
             for i in range(self.cur_batch_size):
@@ -632,7 +587,7 @@ class LitModel(pl.LightningModule):
                 target.diagonal_overlap,
                 target.non_diagonal_overlap,
                 transform=True,
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
         else:
             overlap = target["overlap"]
@@ -698,7 +653,7 @@ class LitModel(pl.LightningModule):
                 tol=tol,
             )
 
-    def matrix_transform(self, hamiltonian, data, convention="pyscf_def2svp"):
+    def matrix_transform(self, hamiltonian, data, convention="e3nn_to_pyscf_def2svp"):
         if isinstance(hamiltonian, list):
             return self.matrix_transform_list(hamiltonian, data, convention)
         else:
@@ -709,7 +664,14 @@ class LitModel(pl.LightningModule):
                 assert isinstance(data, list) or isinstance(data, torch.Tensor), f"Data must be a list or a tensor, got {type(data)}"
                 return self.matrix_transform_single(hamiltonian, data, convention)
 
-    def matrix_transform_list(self, hamiltonian_list, data, convention="pyscf_def2svp"):
+    def matrix_transform_single(self, hamiltonian, atoms, convention="e3nn_to_pyscf_def2svp"):
+        """Transform matrix between different orbital conventions - CUDA optimized version."""
+        assert convention in self.convention_dict, f"Invalid convention: {convention}"
+        conv = self.convention_dict[convention]
+        
+        return _matrix_transform_single(hamiltonian, atoms, conv)
+
+    def matrix_transform_list(self, hamiltonian_list, data, convention="e3nn_to_pyscf_def2svp"):
         """Transform matrix between different orbital conventions - CUDA optimized version."""
         assert convention in self.convention_dict, f"Invalid convention: {convention}"
         
@@ -723,50 +685,6 @@ class LitModel(pl.LightningModule):
             
         return final_matrix_list
 
-    def matrix_transform_single(self, hamiltonian, atoms, convention="pyscf_def2svp"):
-        """Transform matrix between different orbital conventions - CUDA optimized version."""
-        assert convention in self.convention_dict, f"Invalid convention: {convention}"
-        conv = self.convention_dict[convention]
-        
-        # Get device from hamiltonian tensor
-        device = hamiltonian.device
-        dtype = hamiltonian.dtype
-        
-        orbitals = ""
-        orbitals_order = []
-        for a in atoms:
-            offset = len(orbitals_order)
-            orbitals += conv.atom_to_orbitals_map[a.item()]
-            orbitals_order += [idx + offset for idx in conv.orbital_order_map[a.item()]]
-
-        transform_indices = []
-        transform_signs = []
-        for orb in orbitals:
-            offset = sum(map(len, transform_indices))
-            map_idx = conv.orbital_idx_map[orb]
-            map_sign = conv.orbital_sign_map[orb]
-            # Convert to torch tensors directly on the correct device
-            transform_indices.append(torch.tensor(map_idx, device=device, dtype=torch.long) + offset)
-            transform_signs.append(torch.tensor(map_sign, device=device, dtype=dtype))
-
-        # Reorder according to orbitals_order
-        transform_indices = [transform_indices[idx] for idx in orbitals_order]
-        transform_signs = [transform_signs[idx] for idx in orbitals_order]
-        
-        # Concatenate using torch.cat instead of np.concatenate
-        transform_indices = torch.cat(transform_indices)
-        transform_signs = torch.cat(transform_signs)
-
-        # Apply transformation using torch indexing
-        hamiltonian_new = hamiltonian[..., transform_indices, :]
-        hamiltonian_new = hamiltonian_new[..., :, transform_indices]
-        
-        # Apply signs using torch operations
-        hamiltonian_new = hamiltonian_new * transform_signs.unsqueeze(-1)
-        hamiltonian_new = hamiltonian_new * transform_signs.unsqueeze(-2)
-
-        return hamiltonian_new
-
     def build_final_matrix(
         self,
         data,
@@ -777,51 +695,17 @@ class LitModel(pl.LightningModule):
         dtype=None,
     ):
         """Build final matrix from diagonal and non-diagonal blocks."""
-        final_matrix = []
-        if hasattr(data, "full_edge_index"):
-            dst, src = data.full_edge_index
-        else:
-            dst, src = data.edge_index_full
-        for graph_idx in range(data.ptr.shape[0] - 1):
-            matrix_block_col = []
-            for src_idx in range(data.ptr[graph_idx], data.ptr[graph_idx + 1]):
-                matrix_col = []
-                for dst_idx in range(data.ptr[graph_idx], data.ptr[graph_idx + 1]):
-                    if src_idx == dst_idx:
-                        matrix_col.append(
-                            diagonal_matrix[src_idx]
-                            .index_select(
-                                -2, self.orbital_mask[data.atoms[dst_idx].item()]
-                            )
-                            .index_select(
-                                -1, self.orbital_mask[data.atoms[src_idx].item()]
-                            )
-                        )
-                    else:
-                        mask1 = src == src_idx
-                        mask2 = dst == dst_idx
-                        index = torch.where(mask1 & mask2)[0].item()
-
-                        matrix_col.append(
-                            non_diagonal_matrix[index]
-                            .index_select(
-                                -2, self.orbital_mask[data.atoms[dst_idx].item()]
-                            )
-                            .index_select(
-                                -1, self.orbital_mask[data.atoms[src_idx].item()]
-                            )
-                        )
-                matrix_block_col.append(torch.cat(matrix_col, dim=-2))
-            mat_res = torch.cat(matrix_block_col, dim=-1)
+        final_matrix = _build_final_matrix(
+            data,
+            diagonal_matrix,
+            non_diagonal_matrix,
+            self.orbital_mask,
+        )
+        for i in range(len(final_matrix)):
             if transform:
-                mat_res = self.matrix_transform(
-                    mat_res,
-                    data.atoms[data.batch == graph_idx],
-                    convention,
-                )
+                final_matrix[i] = self.matrix_transform(final_matrix[i], data.atoms[data.batch == i], convention)
             if dtype is not None:
-                mat_res = mat_res.type(dtype)
-            final_matrix.append(mat_res)
+                final_matrix[i] = final_matrix[i].type(dtype)
         return final_matrix
 
     # ==========================================
@@ -1288,7 +1172,7 @@ class LitModel(pl.LightningModule):
         hamiltonian_t_pyscf = self.matrix_transform(
             cur_ham,
             batch.atoms,
-            convention="back2pyscf"
+            convention="e3nn_to_pyscf_def2svp"
         )
         orbital_energies, orbital_coefficients = self.cal_orbital_and_energies(
             overlap_pyscf, hamiltonian_t_pyscf

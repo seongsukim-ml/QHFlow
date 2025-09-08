@@ -207,11 +207,12 @@ def setup_warmup_training(conf: DictConfig, lit_model, train_dataset, wandb_logg
     return False
 
 
-def create_inference_loader(mode: str, test_dataset, conf: DictConfig):
+def create_inference_loader(mode: str, test_dataset, conf: DictConfig, test_length=300):
     """Create inference data loader based on mode."""
     if mode == "inference":
+        logger.info(f"Using inference loader with {test_length} / {len(test_dataset)}")
         inf_loader = DataLoader(
-            test_dataset[:300],
+            test_dataset[:test_length],
             batch_size=1,
             shuffle=False,
             num_workers=conf.dataset.num_workers,
@@ -245,6 +246,8 @@ def dataset_abbr(dataset_name: str):
         "QH9Dynamic-300k-geometry".lower(): "geo",
         "QH9Dynamic-300k-mol".lower(): "mol",
     }
+    if dataset_name.lower() not in qh9_abbr:
+        raise ValueError(f"Unknown dataset for qh9_abbr: {dataset_name} (valid: {qh9_abbr.keys()})")
     return qh9_abbr[dataset_name.lower()]
 
 def dataset_full_name(dataset_abbr: str):
@@ -254,4 +257,6 @@ def dataset_full_name(dataset_abbr: str):
         "geo".lower(): "QH9Dynamic-300k-geometry",
         "mol".lower(): "QH9Dynamic-300k-mol",
     }
+    if dataset_abbr.lower() not in qh9_full_name:
+        raise ValueError(f"Unknown dataset for qh9_full_name: {dataset_abbr} (valid: {qh9_full_name.keys()})")
     return qh9_full_name[dataset_abbr.lower()]

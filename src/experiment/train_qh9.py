@@ -85,6 +85,7 @@ def main(conf):
         # Get checkpoint path
         ckpt_path = get_checkpoint_path(conf, output_dir)
 
+        # Add tags to wandb
         conf.wandb.tags += ["qh9", dataset_abbr(conf.dataset.dataset_full_name)]
         
         # Setup wandb logger
@@ -96,11 +97,7 @@ def main(conf):
         trainer = setup_trainer(conf, callbacks, [wandb_logger], output_dir)
         log_training_config(conf)
 
-        if mode in ["predict"]:
-            logger.info(f"Mode: {mode}, Setting output_dir to {output_dir}")
-            setattr(lit_model, "output_dir", output_dir)
-
-        # Setup warmup training if needed
+        # Setup warmup training if needed (it is only for Real_QHNet since it sometimes fails to converge)
         setup_warmup_training(conf, lit_model, train_dataset, wandb_logger, callbacks, ckpt_path is None)
         # Start training/testing
         _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loader, test_loader, ckpt_path, conf, output_dir)
@@ -121,6 +118,8 @@ def _run_qh9_training_or_testing(mode, trainer, lit_model, train_loader, val_loa
         # Test the model
         trainer.test(lit_model, test_loader, ckpt_path=ckpt_path)
     elif mode in ["inference", "predict", "predict-mul"]:
+        logger.info(f"Mode: {mode}, Setting output_dir to {output_dir}")
+
         setattr(lit_model, "output_dir", output_dir)
         
         if mode == "inference":

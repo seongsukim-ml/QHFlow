@@ -1261,7 +1261,7 @@ class LitModel_flow(LitModel):
         batch_one.hamiltonian_pyscf = self.matrix_transform(
             batch_ham,
             batch_one,
-            convention="back2pyscf",
+            convention="e3nn_to_pyscf_def2svp",
         )
         
         batch_one = self.process_target_batch(batch_one)
@@ -1274,7 +1274,7 @@ class LitModel_flow(LitModel):
             ham_calc = self.matrix_transform(
                 init_scf_ret["fock"],
                 batch_one,
-                convention="pyscf_def2svp",
+                convention="e3nn_to_pyscf_def2svp",
             ).unsqueeze(0)
             # ham_calc = torch.tensor(ham_calc).unsqueeze(0).to(self.device)
             ham_calc_error = (ham_calc - batch_one.hamiltonian).abs().mean()
@@ -1369,14 +1369,14 @@ class LitModel_flow(LitModel):
                 sample["hamiltonian_diagonal_blocks"],
                 sample["hamiltonian_non_diagonal_blocks"],
                 transform=True,
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
             gt_overlap = self.build_final_matrix(
                 batch_one,
                 batch_one.diagonal_overlap,
                 batch_one.non_diagonal_overlap,
                 transform=True,
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
             if self._batch_has_ground_truth_hamiltonian(batch_one):
                 gt_hamiltonian = self.build_final_matrix(
@@ -1384,7 +1384,7 @@ class LitModel_flow(LitModel):
                     batch_one.diagonal_hamiltonian,
                     batch_one.non_diagonal_hamiltonian,
                     transform=True,
-                    convention="back2pyscf",
+                    convention="e3nn_to_pyscf_def2svp",
                 )
 
             for i in range(self.cur_batch_size):
@@ -2195,7 +2195,7 @@ class LitModel_flow(LitModel):
             outputs["hamiltonian"] = self.matrix_transform(
                 outputs["hamiltonian"],
                 batch.atoms.cpu().squeeze().numpy(),
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
 
             last_traj.append(outputs["hamiltonian"])
@@ -2204,7 +2204,7 @@ class LitModel_flow(LitModel):
             batch.hamiltonian = self.matrix_transform(
                 batch.hamiltonian,
                 batch.atoms.cpu().squeeze().numpy(),
-                convention="back2pyscf",
+                convention="e3nn_to_pyscf_def2svp",
             )
             
             # Build overlap matrix
@@ -2214,7 +2214,7 @@ class LitModel_flow(LitModel):
 
             overlap = overlap.type(torch.float64)
             overlap = self.matrix_transform(
-                overlap, batch.atoms.cpu().squeeze().numpy(), convention="back2pyscf"
+                overlap, batch.atoms.cpu().squeeze().numpy(), convention="e3nn_to_pyscf_def2svp"
             )
 
             # Compute orbital properties

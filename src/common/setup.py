@@ -26,14 +26,18 @@ MODE_DICT = {
     "pred": "predict",
 }
 
+# Ex: /mnt/QHFlow/src
+DEFAULT_SRC_PATH  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-def setup_paths():
-    """Setup Python path and get root directory."""
+def setup_paths(src_path: str=None):
+    """Setup Python path and get src directory."""
     # Get the absolute path to the parent directory
-    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    src_path = DEFAULT_SRC_PATH if src_path is None else src_path  
     # Insert the parent directory at the beginning of sys.path
-    sys.path.insert(0, parent_dir)
-    return parent_dir
+    sys.path.insert(0, src_path)
+    logger.info(f"Add src_path to sys.path: {src_path}")
+    return src_path
 
 
 def setup_auxiliary_basis(output_dir: Path):
@@ -62,10 +66,13 @@ def setup_tensor_type_and_seed(conf: DictConfig):
     pl.seed_everything(seed)
 
 
-def get_root_path():
+def get_root_path(conf: DictConfig=None):
     """Get the root path for dataset loading."""
-    root_path = os.path.join(os.sep.join(os.getcwd().split(os.sep)[:-4]))
+    root_path = DEFAULT_ROOT_PATH if conf is None else conf.get("root_path", DEFAULT_ROOT_PATH)
     logger.info(f"Root path: {root_path}")
+    if not os.path.exists(root_path):
+        logger.error(f"Root path {root_path} does not exist")
+        raise FileNotFoundError(f"Root path {root_path} does not exist")
     return root_path
 
 
