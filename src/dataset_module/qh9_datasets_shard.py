@@ -8,6 +8,7 @@ import gdown
 import torch
 from tqdm import tqdm
 import random
+from typing import Union, List
 
 # Configure logging
 logging.basicConfig(
@@ -1070,6 +1071,18 @@ class QH9Dynamic(InMemoryDataset):
 
         return data
 
+def parse_shard_idx(shard_idx_str):
+    """Parse shard_idx string into a list of integers"""
+    if ',' in shard_idx_str:
+        # Comma-separated list: "0,1,2,3"
+        return [int(x.strip()) for x in shard_idx_str.split(',')]
+    elif '-' in shard_idx_str and shard_idx_str.count('-') == 1:
+        # Range: "0-5"
+        start, end = map(int, shard_idx_str.split('-'))
+        return list(range(start, end + 1))
+    else:
+        # Single integer: "0"
+        return [int(shard_idx_str)]
 
 if __name__ == "__main__":
     import argparse
@@ -1084,18 +1097,22 @@ if __name__ == "__main__":
     parser.add_argument("--version", type=str, default="300k")
     parser.add_argument("--split", type=str, default="random")
     parser.add_argument("--dynamic_split", type=str, default="geometry")
-    parser.add_argument("--shard_num", type=int, default=10)
-    parser.add_argument("--shard_idx", type=int, default=0)
+    parser.add_argument("--shard_num", type=int, default=10, help="Number of shards for the dataset, for example, 10 shards for QH9Stable dataset")
+    parser.add_argument("--shard_idx", type=str, default="0", help="-1 for all shards, Comma-separated list of shard indices or single index ex) 0,1,2,3 or 0-5")
     parser.add_argument("--prefix", type=str, default="_shard")
     parser.add_argument("--pdb", action="store_true", default=False)
 
     args = parser.parse_args()
-    torch.set_num_threads(8)
-    os.environ["OMP_NUM_THREADS"] = "8"
-    os.environ["MKL_NUM_THREADS"] = "8"
-    os.environ["NUMEXPR_NUM_THREADS"] = "8"
+    args.shard_idx = parse_shard_idx(args.shard_idx)
+    torch.set_num_threads(4)
+    os.environ["OMP_NUM_THREADS"] = "4"
+    os.environ["MKL_NUM_THREADS"] = "4"
+    os.environ["NUMEXPR_NUM_THREADS"] = "4"
     logger.info(f"dataset path: {args.root}")
+
+
     logger.info(f"Processing {args.name} dataset with shard_idx: {args.shard_idx}")
+
     assert args.name in ["QH9Stable", "QH9Dynamic"]
     if args.name == "QH9Stable":
         assert args.split in ["random", "size_ood"]

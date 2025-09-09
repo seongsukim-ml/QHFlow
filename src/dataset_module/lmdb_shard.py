@@ -42,10 +42,11 @@ class LMDBShard_maker:
 
         self.db = None
         self.cursor = None
-        self.all_data = None
+        # self.all_data = None
         self.lmdb_path_list = self._lmdb_path_list()
 
     def process(self, idx = None):
+        assert isinstance(idx, (int, list, None)), f"Index {idx} is not an integer or list"
         logger.info(f"Loading the database from {self.root_path}")
         logger.info(f"Saving processed data to {self.save_path}")
         logger.info(f"Saving shards to {self.shard_dir_path}")
@@ -62,10 +63,14 @@ class LMDBShard_maker:
         self._write_shard_idx()
         
         self.cursor = self.db.cursor()
-        all_data = self.cursor.execute("select * from data").fetchall()
-        self.all_data = all_data
-        self._close_db_env()
+        # logger.info(f"Loading all data from database")
+        # all_data = self.cursor.execute("select * from data").fetchall()
+        # self.all_data = all_data
+        # logger.info(f"Loaded {len(all_data)} data from database")
+        # self._close_db_env()
+
         self._make_split_info() # Making Train, Val, Test indices
+
         if idx == -1 or idx is None:
             if idx == -1:
                 logger.info(f"idx is -1, making all shards")
@@ -194,17 +199,16 @@ class LMDBShard_maker:
             self.cursor = None
             
     def _db_info(self, save_info=True):
-        if self.db is None:
-            self._get_db_env()
-        self.cursor = self.db.cursor()
-        tables = self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
+        db = self._get_db_env() if self.db is None else self.db
+        cursor = db.cursor()
+        tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
         
         # Prepare info string for both printing and saving
         info_lines = []
         
         for table in tables:
             table_name = table[0]
-            columns = self.cursor.execute(f"PRAGMA table_info({table_name});").fetchall()
+            columns = cursor.execute(f"PRAGMA table_info({table_name});").fetchall()
             
             table_info = f"Table: {table_name}"
             print(table_info)
@@ -216,7 +220,7 @@ class LMDBShard_maker:
                 print(column_info)
                 info_lines.append(column_info)
             
-            row_count = self.cursor.execute(f'SELECT COUNT(*) FROM {table_name};').fetchone()[0]
+            row_count = cursor.execute(f'SELECT COUNT(*) FROM {table_name};').fetchone()[0]
             row_info = f"  Total rows: {row_count}"
             print(row_info)
             info_lines.append(row_info)
@@ -307,9 +311,28 @@ class LMDBShard_maker:
         # key, data = key_data_pair
         raise NotImplementedError("process method is not implemented")
     
-    def make_new_shard(self, idx, max_workers=8):
-        assert self.all_data is not None, "all_data is not set"
-        data_chunk = self.all_data[self.start_idx_list[idx]:self.end_idx_list[idx]]
+    def make_new_shard(self, idx, max_workers=8, get_keys_list=True):
+        # assert self.all_data is not None, "all_data is not set"
+        # data_chunk = self.all_data[self.start_idx_list[idx]:self.end_idx_list[idx]]
+
+        # Loading the batch data from database (Loading all data from database is too slow)
+        logger.info(f"Loading data from database for shard {idx}")
+        data_chunk = self.cursor.execute(
+            f"SELECT * FROM data LIMIT {self.end_idx_list[idx] - self.start_idx_list[idx]} OFFSET {self.start_idx_list[idx]}"
+        ).fetchall()
+
+        if get_keys_list:
+            try:
+                keys_list = self.cursor.execute(
+                    f"SELECT id FROM data LIMIT {self.end_idx_list[idx] - self.start_idx_list[idx]} OFFSET {self.start_idx_list[idx]}"
+                ).fetchall()
+                os.makedirs(self.lmdb_path_list[idx]+"_in_process", exist_ok=True)
+                with open(os.path.join(self.lmdb_path_list[idx]+"_in_process", "keys_list.json"), "w") as f:
+                    json.dump({"keys_list": keys_list}, f)
+            except Exception as e:
+                logger.warning(f"Error getting keys list for shard {idx}: {e}")
+
+        logger.info(f"Loaded {len(data_chunk)} data from database for shard {idx}")
         data_idx = np.arange(self.start_idx_list[idx], self.end_idx_list[idx])
 
         # Calculate optimal map_size based on shard size
@@ -318,6 +341,7 @@ class LMDBShard_maker:
         shard_size = samples_per_shard * avg_size_per_sample
 
         map_size = max(shard_size * 3, 1024**3)  # 3x safety margin, minimum 1GB
+        logger.info(f"Making shard {idx} with map_size {map_size / (1024**3):.2f} GB")
         db_env = lmdb.open(self.lmdb_path_list[idx]+"_in_process", map_size=map_size)
         data_chunk_idx = list(zip(data_chunk, data_idx)) # use key for data index
         if self.use_parallel:
@@ -345,7 +369,7 @@ class LMDBShard_maker:
         data_idx = np.arange(self.start_idx_list[idx], self.end_idx_list[idx])
         shard_data_idx = 0
         for key in data_idx:
-            index.append((idx, key, shard_data_idx))
+            index.append((idx, key.item(), shard_data_idx))
             shard_data_idx += 1
         with open(os.path.join(self.lmdb_path_list[idx],"single_index.json"), "w") as f:
             json.dump({"index": index}, f)
