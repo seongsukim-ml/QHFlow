@@ -33,6 +33,7 @@ GoogleDriveLink = (
 # QH9Stable
 ########################################################
 
+
 class QH9Stable_shard(LMDBShard_maker):
     def __init__(
         self,
@@ -678,8 +679,8 @@ class QH9Dynamic_shard(LMDBShard_maker):
         data, data_idx = key_data_pair
         key = int(data_idx).to_bytes(length=4, byteorder="big")
         geo_id = data[1]
-        atoms = np.frombuffer(data[2], np.int32)
-        pos = np.frombuffer(data[3], np.float64) * BOHR2ANG # convert from Bohr to Angstrom
+        atoms = np.frombuffer(data[3], np.int32)
+        pos = np.frombuffer(data[4], np.float64) * BOHR2ANG # convert from Bohr to Angstrom
 
         ovlp, init_ham, mf = calc_overlap_and_init_hamiltonian(atoms, pos.reshape(-1, 3), out_mf=True)
         hamiltonian = np.frombuffer(data[9], np.float64) # flattened hamiltonian matrix
@@ -699,6 +700,7 @@ class QH9Dynamic_shard(LMDBShard_maker):
         packed_dm0, _ = self.pack_upper_triangle(dm0)
         packed_orbital_coefficients, _ = self.pack_upper_triangle(orbital_coefficients)
 
+        # Here, atoms and pos are not converted to "numpy array", since we have to convert them (byte stream) to "numpy array" in the get method
         ori_data_dict = {
             "id": data[0],
             "geo_id": geo_id,
@@ -716,6 +718,10 @@ class QH9Dynamic_shard(LMDBShard_maker):
         }
         data_dict = pickle.dumps(ori_data_dict)
         return key, data_dict
+
+########################################################
+# QH9Dynamic
+########################################################
 
 class QH9Dynamic(InMemoryDataset):
     url = {
