@@ -362,6 +362,7 @@ class LMDBShard_maker:
                     txn.put(key, value)
         db_env.close()
         os.rename(self.lmdb_path_list[idx]+"_in_process", self.lmdb_path_list[idx])
+        logger.info(f'The size of the shard {idx} is {os.path.getsize(self.lmdb_path_list[idx]) / (1024**3):.2f} GB')
         self.wirte_shard_idx_single(idx)
     
     def wirte_shard_idx_single(self, idx):

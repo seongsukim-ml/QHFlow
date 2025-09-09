@@ -11,16 +11,7 @@ import random
 from typing import Union, List
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # Console output
-        logging.FileHandler('qh9_datasets.log')  # File output
-    ]
-)
 
-logger = logging.getLogger(__name__)
 from common.metric import cal_orbital_and_energies
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle, _matrix_transform_single, get_convention_dict, _cut_matrix_3d, _cut_matrix_3d_last
 from dataset_module.lmdb_shard import LMDBShard_maker
@@ -37,6 +28,10 @@ BOHR2ANG = 1 / ANG2BOHR # 0.52917721067 - Bohr to Angstrom conversion (MD17)
 GoogleDriveLink = (
     "https://drive.google.com/drive/u/0/folders/1LXTC8uaOQzmb76FsuGfwSocAbK5Hshfj"
 )
+
+########################################################
+# QH9Stable
+########################################################
 
 class QH9Stable_shard(LMDBShard_maker):
     def __init__(
@@ -370,24 +365,8 @@ class QH9Stable(InMemoryDataset):
     
     def get(self, idx):
         """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
-        
-        # Get cached LMDB environment (no need for context manager since we're reusing connections)
-        db_env = self._get_shard_db_env(idx)
-        
         try:
-            with db_env.begin() as txn:
-                # Pre-create key for reuse
-                key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
-                data_dict = txn.get(key)
-                
-                if data_dict is None:
-                    print(self.get_key_list(idx))
-                    raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
-                    
-                data_dict = pickle.loads(data_dict)
-                
-                data = self.get_mol(data_dict, orb_energy_and_coeff=True)
-            return data
+            return self._get(idx)
         except Exception as e:
             # If there's an error, try to refresh the LMDB environment
             logger.warning(f"Error accessing LMDB for idx {idx}: {e}. Attempting to refresh environment.")
@@ -400,19 +379,24 @@ class QH9Stable(InMemoryDataset):
                 del self._db_envs[shard_idx]
             
             # Retry with fresh environment
-            db_env = self._get_shard_db_env(idx)
-            with db_env.begin() as txn:
-                key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
-                data_dict = txn.get(key)
+            return self._get(idx)
+    
+    def _get(self, idx):
+        # Get cached LMDB environment (no need for context manager since we're reusing connections)        
+        db_env = self._get_shard_db_env(idx)
+        with db_env.begin() as txn:
+            key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
+            data_dict = txn.get(key)
+            
+            if data_dict is None:
+                raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
                 
-                if data_dict is None:
-                    raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
-                    
-                data_dict = pickle.loads(data_dict)
-                data = self.get_mol(data_dict, orb_energy_and_coeff=True)
-            return data
+            data_dict = pickle.loads(data_dict)
+            data = self.get_mol(data_dict, orb_energy_and_coeff=True)
+        return data
     
     def get_key_list(self, idx):
+        """Get the key list of the shard (for debugging)"""
         db_env = self._get_shard_db_env(idx)
         with db_env.begin() as txn:
             key_list = []
@@ -530,6 +514,10 @@ class QH9Stable(InMemoryDataset):
 
         return data
     
+########################################################
+# QH9Dynamic
+########################################################
+
 class QH9Dynamic_shard(LMDBShard_maker):
     def __init__(
         self,
@@ -688,7 +676,7 @@ class QH9Dynamic_shard(LMDBShard_maker):
                 10: converged (INT, np.int) NULL (Not used)
       """
         data, data_idx = key_data_pair
-        key = data_idx.to_bytes(length=4, byteorder="big")
+        key = int(data_idx).to_bytes(length=4, byteorder="big")
         geo_id = data[1]
         atoms = np.frombuffer(data[2], np.int32)
         pos = np.frombuffer(data[3], np.float64) * BOHR2ANG # convert from Bohr to Angstrom
@@ -937,23 +925,38 @@ class QH9Dynamic(InMemoryDataset):
     
     def get(self, idx):
         """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
-        
-        # Get cached LMDB environment (no need for context manager since we're reusing connections)
+        try:
+            return self._get(idx)
+        except Exception as e:
+            # If there's an error, try to refresh the LMDB environment
+            logger.warning(f"Error accessing LMDB for idx {idx}: {e}. Attempting to refresh environment.")
+            shard_idx = self.shard_idx_list[idx]
+            if shard_idx in self._db_envs:
+                try:
+                    self._db_envs[shard_idx].close()
+                except:
+                    pass
+                del self._db_envs[shard_idx]
+            
+            # Retry with fresh environment
+            return self._get(idx)
+    
+    def _get(self, idx):
+        # Get cached LMDB environment (no need for context manager since we're reusing connections)        
         db_env = self._get_shard_db_env(idx)
         with db_env.begin() as txn:
-            # Pre-create key for reuse
             key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
             data_dict = txn.get(key)
             
             if data_dict is None:
-                raise KeyError(f"Index {idx} not found in database")
+                raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
                 
             data_dict = pickle.loads(data_dict)
-            
             data = self.get_mol(data_dict, orb_energy_and_coeff=True)
         return data
     
     def get_key_list(self, idx):
+        """Get the key list of the shard (for debugging)"""
         db_env = self._get_shard_db_env(idx)
         with db_env.begin() as txn:
             key_list = []
@@ -1001,7 +1004,7 @@ class QH9Dynamic(InMemoryDataset):
         packed_hamiltonian = np.frombuffer(data_dict["packed_hamiltonian"], np.float64)
         packed_overlap = np.frombuffer(data_dict["packed_overlap"], np.float64)
         packed_initial_hamiltonian = np.frombuffer(data_dict["packed_initial_hamiltonian"], np.float64)
-        packed_dm0 = np.frombuffer(data_dict["packed_dm0"], np.float64) # [h_dim, h_dim]
+        # packed_dm0 = np.frombuffer(data_dict["packed_dm0"], np.float64) # [h_dim, h_dim]
         
         # Direct tensor creation from unpacked matrices to reduce memory overhead
         hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_hamiltonian, h_dim)).to(torch.float64)
@@ -1016,21 +1019,21 @@ class QH9Dynamic(InMemoryDataset):
         concat_diagonal_blocks, concat_non_diagonal_blocks, concat_diagonal_masks, concat_non_diagonal_masks, edge_index_full = _cut_matrix_3d(transformed_concat_feat, atoms, self.orbital_mask, self.full_orbitals)
 
         # slice the concat_diagonal_blocks and concat_non_diagonal_blocks
-        diagonal_hamiltonian = concat_diagonal_blocks[0]
-        non_diagonal_hamiltonian = concat_non_diagonal_blocks[0]
-        diagonal_hamiltonian_mask = concat_diagonal_masks[0]
-        non_diagonal_hamiltonian_mask = concat_non_diagonal_masks[0]
+        diagonal_hamiltonian = concat_diagonal_blocks[:,0]
+        non_diagonal_hamiltonian = concat_non_diagonal_blocks[:,0]
+        diagonal_hamiltonian_mask = concat_diagonal_masks[:,0]
+        non_diagonal_hamiltonian_mask = concat_non_diagonal_masks[:,0]
 
-        diagonal_init_ham = concat_diagonal_blocks[1]
-        non_diagonal_init_ham = concat_non_diagonal_blocks[1]
+        diagonal_init_ham = concat_diagonal_blocks[:,1]
+        non_diagonal_init_ham = concat_non_diagonal_blocks[:,1]
         
-        diagonal_overlap = concat_diagonal_blocks[2]
-        non_diagonal_overlap = concat_non_diagonal_blocks[2]
+        diagonal_overlap = concat_diagonal_blocks[:,2]
+        non_diagonal_overlap = concat_non_diagonal_blocks[:,2]
                 
         # Optimize Q tensor creation: use list comprehension for better memory efficiency
         Q_blocks = []
         for l in range(60):
-            block_diag_components = [self.Q_dict[z][l] for z in atoms]
+            block_diag_components = [self.Q_dict[z.item()][l] for z in atoms]
             Q_blocks.append(torch.block_diag(*block_diag_components))
         
         Q = torch.stack(Q_blocks)  # [60, h_dim, h_dim]
@@ -1071,6 +1074,10 @@ class QH9Dynamic(InMemoryDataset):
 
         return data
 
+########################################################
+# Main function & Argument parser
+########################################################
+
 def parse_shard_idx(shard_idx_str):
     """Parse shard_idx string into a list of integers"""
     if ',' in shard_idx_str:
@@ -1085,6 +1092,17 @@ def parse_shard_idx(shard_idx_str):
         return [int(shard_idx_str)]
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),  # Console output
+            logging.FileHandler('qh9_datasets.log')  # File output
+        ]
+    )
+
+    logger = logging.getLogger(__name__)
+
     import argparse
 
     parser = argparse.ArgumentParser(description="Generation")

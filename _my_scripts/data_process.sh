@@ -54,4 +54,12 @@ python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=27 --pref
 python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=28 --prefix="_shard"
 python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=29 --prefix="_shard"
 
-python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=-1 --name=QH9Dynamic
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=-1 --name=QH9Dynamic --prefix="_shard"
+
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=0-4 --name=QH9Dynamic   --prefix="_shard"
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=5-9 --name=QH9Dynamic   --prefix="_shard"
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=10-14 --name=QH9Dynamic --prefix="_shard"
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=15-19 --name=QH9Dynamic --prefix="_shard"
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=20-24 --name=QH9Dynamic --prefix="_shard"
+python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=25-29 --name=QH9Dynamic --prefix="_shard"
+
