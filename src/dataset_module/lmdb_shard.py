@@ -21,6 +21,7 @@ class LMDBShard_maker:
         processd_dir_name="processed",
         shard_dir_name="lmdbs",
         overwrite=False,
+        make_split_info=True,
     ):
         self.root_path = root_path # .db files
 
@@ -44,6 +45,7 @@ class LMDBShard_maker:
         self.cursor = None
         # self.all_data = None
         self.lmdb_path_list = self._lmdb_path_list()
+        self.make_split_info = make_split_info
 
     def process(self, idx = None):
         assert isinstance(idx, (int, list, None)), f"Index {idx} is not an integer or list"
@@ -69,7 +71,8 @@ class LMDBShard_maker:
         # logger.info(f"Loaded {len(all_data)} data from database")
         # self._close_db_env()
 
-        self._make_split_info() # Making Train, Val, Test indices
+        if self.make_split_info:
+            self._make_split_info() # Making Train, Val, Test indices
 
         if idx == -1 or idx is None:
             if idx == -1:

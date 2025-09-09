@@ -1,29 +1,22 @@
-# sample
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=0 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=1 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=2 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=3 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=4 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=5 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=6 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=7 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=8 --prefix="_sample"
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=9 --prefix="_sample"
 
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=5-9 --prefix="_sample"
+python -m dataset_module.qh9_datasets --pdb
+
+# sample
+conda activate qhflow && cd ~/25DFT/QHFlow/src
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=0-1 --prefix="_sample"
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=2-3 --prefix="_sample"
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=4-5 --prefix="_sample"
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=6-7 --prefix="_sample"
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=8-9 --prefix="_sample"
 
 
 # sample
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=0 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=1 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=2 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=3 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=4 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=5 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=6 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=7 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=8 --name=QH9Dynamic
-python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=9 --name=QH9Dynamic
+conda activate qhflow && cd ~/25DFT/QHFlow/src
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=0-1 --name=QH9Dynamic
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=2-3 --name=QH9Dynamic
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=4-5 --name=QH9Dynamic
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=6-7 --name=QH9Dynamic
+python -m dataset_module.qh9_datasets_shard --shard_num=10 --shard_idx=8-9 --name=QH9Dynamic
 
 # shard
 python -m dataset_module.qh9_datasets_shard --shard_num=30 --shard_idx=0 --prefix="_shard"   
