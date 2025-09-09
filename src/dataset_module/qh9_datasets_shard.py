@@ -464,12 +464,13 @@ class QH9Stable(InMemoryDataset):
         non_diagonal_hamiltonian = concat_non_diagonal_blocks[:,0]
         diagonal_hamiltonian_mask = concat_diagonal_masks[:,0]
         non_diagonal_hamiltonian_mask = concat_non_diagonal_masks[:,0]
-
-        diagonal_init_ham = concat_diagonal_blocks[:,1]
-        non_diagonal_init_ham = concat_non_diagonal_blocks[:,1]
-        
-        diagonal_overlap = concat_diagonal_blocks[:,2]
-        non_diagonal_overlap = concat_non_diagonal_blocks[:,2]
+      
+        diagonal_overlap = concat_diagonal_blocks[:,1]
+        non_diagonal_overlap = concat_non_diagonal_blocks[:,1]
+  
+        diagonal_init_ham = concat_diagonal_blocks[:,2]
+        non_diagonal_init_ham = concat_non_diagonal_blocks[:,2]
+  
                 
         # Optimize Q tensor creation: use list comprehension for better memory efficiency
         Q_blocks = []
@@ -1029,12 +1030,13 @@ class QH9Dynamic(InMemoryDataset):
         non_diagonal_hamiltonian = concat_non_diagonal_blocks[:,0]
         diagonal_hamiltonian_mask = concat_diagonal_masks[:,0]
         non_diagonal_hamiltonian_mask = concat_non_diagonal_masks[:,0]
-
-        diagonal_init_ham = concat_diagonal_blocks[:,1]
-        non_diagonal_init_ham = concat_non_diagonal_blocks[:,1]
         
-        diagonal_overlap = concat_diagonal_blocks[:,2]
-        non_diagonal_overlap = concat_non_diagonal_blocks[:,2]
+        diagonal_overlap = concat_diagonal_blocks[:,1]
+        non_diagonal_overlap = concat_non_diagonal_blocks[:,1]
+
+        diagonal_init_ham = concat_diagonal_blocks[:,2]
+        non_diagonal_init_ham = concat_non_diagonal_blocks[:,2]
+
                 
         # Optimize Q tensor creation: use list comprehension for better memory efficiency
         Q_blocks = []
