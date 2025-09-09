@@ -10,11 +10,9 @@ from tqdm import tqdm
 import random
 from typing import Union, List
 
-# Configure logging
-
 from common.metric import cal_orbital_and_energies
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle, _matrix_transform_single, get_convention_dict, _cut_matrix_3d, _cut_matrix_3d_last
-from dataset_module.lmdb_shard import LMDBShard_maker
+from dataset_module.lmdb_shard import LMDBShard_maker_db
 from dataset_module.data_dft_utils import calc_overlap_and_init_hamiltonian, calc_dm0
 
 from torch_geometric.data import InMemoryDataset, Data
@@ -34,7 +32,7 @@ GoogleDriveLink = (
 ########################################################
 
 
-class QH9Stable_shard(LMDBShard_maker):
+class QH9Stable_shard(LMDBShard_maker_db):
     def __init__(
         self,
         root_path: str,
@@ -386,11 +384,12 @@ class QH9Stable(InMemoryDataset):
         # Get cached LMDB environment (no need for context manager since we're reusing connections)        
         db_env = self._get_shard_db_env(idx)
         with db_env.begin() as txn:
-            key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
+            key = int(idx).to_bytes(length=4, byteorder="big")
             data_dict = txn.get(key)
             
             if data_dict is None:
-                raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
+                print(self.get_key_list(idx))
+                raise KeyError(f"Index idx: {idx}, shard_data_idx: {self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
                 
             data_dict = pickle.loads(data_dict)
             data = self.get_mol(data_dict, orb_energy_and_coeff=True)
@@ -520,7 +519,7 @@ class QH9Stable(InMemoryDataset):
 # QH9Dynamic
 ########################################################
 
-class QH9Dynamic_shard(LMDBShard_maker):
+class QH9Dynamic_shard(LMDBShard_maker_db):
     def __init__(
         self,
         root_path: str,
@@ -952,7 +951,7 @@ class QH9Dynamic(InMemoryDataset):
         # Get cached LMDB environment (no need for context manager since we're reusing connections)        
         db_env = self._get_shard_db_env(idx)
         with db_env.begin() as txn:
-            key = int(self.shard_data_idx_list[idx]).to_bytes(length=4, byteorder="big")
+            key = int(idx).to_bytes(length=4, byteorder="big")
             data_dict = txn.get(key)
             
             if data_dict is None:
