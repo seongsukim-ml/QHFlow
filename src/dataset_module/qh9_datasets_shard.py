@@ -147,6 +147,11 @@ class QH9Stable_shard(LMDBShard_maker_db):
         orbital_coefficients = orbital_coefficients.cpu().numpy()
         orbital_energies = orbital_energies.cpu().numpy()
         dft_energy = mf.energy_tot(dm0)
+
+        # Calculate DFT forces
+        grad_frame = mf.nuc_grad_method()
+        mo_occ = mf.get_occ(orbital_energies.squeeze().numpy(), orbital_coefficients.squeeze().numpy())
+        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze().numpy(), mo_coeff=orbital_coefficients.squeeze().numpy(), mo_occ=mo_occ)
         
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
@@ -158,13 +163,14 @@ class QH9Stable_shard(LMDBShard_maker_db):
             "id": data[0],
             "num_nodes": data[1],
             "atoms": data[2],
-            "pos": data[3],  # angstrom
-            "dft_energy": dft_energy,
+            "pos": data[3],  # unit: angstrom
+            "dft_energy": dft_energy, # unit: Eh
+            "dft_forces": dft_forces.tobytes(), # unit: Eh/Bohr
             "h_dim": h_dim,
-            "packed_hamiltonian": packed_hamiltonian.tobytes(),
+            "packed_hamiltonian": packed_hamiltonian.tobytes(), # unit: Eh
             "packed_overlap": packed_ovlp.tobytes(),
-            "packed_initial_hamiltonian": packed_init_ham.tobytes(),
-            "orbital_energies": orbital_energies.tobytes(),
+            "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
+            "orbital_energies": orbital_energies.tobytes(), # unit: Eh
             "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
             "packed_dm0": packed_dm0.tobytes(),
         }
@@ -438,6 +444,7 @@ class QH9Stable(InMemoryDataset):
         atoms = torch.tensor(np.frombuffer(data_dict["atoms"], np.int32), dtype=torch.int64)
         pos = torch.tensor(np.frombuffer(data_dict["pos"], np.float64).reshape(-1, 3), dtype=torch.float64)
         dft_energy = torch.tensor(data_dict["dft_energy"], dtype=torch.float64)
+        dft_forces = torch.tensor(np.frombuffer(data_dict["dft_forces"], np.float64).reshape(-1, 3), dtype=torch.float64)
         h_dim = data_dict["h_dim"] # sum of orbital dimensions
         
         # Optimize memory usage: unpack matrices directly to tensors without intermediate numpy arrays
@@ -501,6 +508,7 @@ class QH9Stable(InMemoryDataset):
             non_diagonal_Q=non_diagonal_Q,
             edge_index_full=edge_index_full,
             dft_energy=dft_energy.view(1, 1),
+            dft_forces=dft_forces,
             num_nodes=num_nodes.view(1, 1),
             h_dim=torch.tensor(h_dim, dtype=torch.int64).view(1, 1),
         )
@@ -693,6 +701,11 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
         orbital_coefficients = orbital_coefficients.cpu().numpy()
         orbital_energies = orbital_energies.cpu().numpy()
         dft_energy = mf.energy_tot(dm0)
+
+        # Calculate DFT forces
+        grad_frame = mf.nuc_grad_method()
+        mo_occ = mf.get_occ(orbital_energies.squeeze().numpy(), orbital_coefficients.squeeze().numpy())
+        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze().numpy(), mo_coeff=orbital_coefficients.squeeze().numpy(), mo_occ=mo_occ)
         
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
@@ -706,13 +719,14 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
             "geo_id": geo_id,
             "num_nodes": data[2],
             "atoms": data[3],
-            "pos": data[4],  # angstrom
-            "dft_energy": dft_energy,
+            "pos": data[4],  # unit: angstrom
+            "dft_energy": dft_energy, # unit: Eh
+            "dft_forces": dft_forces.tobytes(), # unit: Eh/Bohr
             "h_dim": h_dim,
-            "packed_hamiltonian": packed_hamiltonian.tobytes(),
+            "packed_hamiltonian": packed_hamiltonian.tobytes(), # unit: Eh
             "packed_overlap": packed_ovlp.tobytes(),
-            "packed_initial_hamiltonian": packed_init_ham.tobytes(),
-            "orbital_energies": orbital_energies.tobytes(),
+            "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
+            "orbital_energies": orbital_energies.tobytes(), # unit: Eh
             "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
             "packed_dm0": packed_dm0.tobytes(),
         }
@@ -1004,6 +1018,7 @@ class QH9Dynamic(InMemoryDataset):
         atoms = torch.tensor(np.frombuffer(data_dict["atoms"], np.int32), dtype=torch.int64)
         pos = torch.tensor(np.frombuffer(data_dict["pos"], np.float64).reshape(-1, 3), dtype=torch.float64)
         dft_energy = torch.tensor(data_dict["dft_energy"], dtype=torch.float64)
+        dft_forces = torch.tensor(np.frombuffer(data_dict["dft_forces"], np.float64).reshape(-1, 3), dtype=torch.float64)
         h_dim = data_dict["h_dim"] # sum of orbital dimensions
         
         # Optimize memory usage: unpack matrices directly to tensors without intermediate numpy arrays
@@ -1067,6 +1082,7 @@ class QH9Dynamic(InMemoryDataset):
             non_diagonal_Q=non_diagonal_Q,
             edge_index_full=edge_index_full,
             dft_energy=dft_energy.view(1, 1),
+            dft_forces=dft_forces,
             num_nodes=num_nodes.view(1, 1),
             h_dim=torch.tensor(h_dim, dtype=torch.int64).view(1, 1),
         )
