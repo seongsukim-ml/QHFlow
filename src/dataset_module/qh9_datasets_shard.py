@@ -238,7 +238,6 @@ class QH9Stable(InMemoryDataset):
 
         # Define orbital indices for 1s, 2s, and 2p orbitals (indices 0(1s), 1(2s), 3(2p), 4(2p), 5(2p))
         # This corresponds to the minimal basis set for light elements (H, He)
-        idx_1s_2s_2p = torch.tensor([0, 1, 3, 4, 5])
         
         # Create orbital masks for different atomic numbers
         # orbital_mask_line1: minimal orbital set for hydrogen and helium (atomic numbers 1-2)
@@ -247,7 +246,7 @@ class QH9Stable(InMemoryDataset):
         # 1s [0]
         # 2s [1], 2p [3, 4, 5]
         # 3s [2], 3p [6, 7, 8], 3d [9, 10, 11, 12, 13]        
-        orbital_mask_line1 = idx_1s_2s_2p
+        orbital_mask_line1 = torch.tensor([0, 1, 3, 4, 5])
         orbital_mask_line2 = torch.arange(self.full_orbitals)
         
         # Assign appropriate orbital masks based on atomic number
@@ -804,9 +803,7 @@ class QH9Dynamic(InMemoryDataset):
         self.orbital_mask = {}
 
         # Define orbital indices for 1s, 2s, and 2p orbitals (indices 0(1s), 1(2s), 3(2p), 4(2p), 5(2p))
-        # This corresponds to the minimal basis set for light elements (H, He)
-        idx_1s_2s_2p = torch.tensor([0, 1, 3, 4, 5])
-        
+        # This corresponds to the minimal basis set for light elements (H, He)        
         # Create orbital masks for different atomic numbers
         # orbital_mask_line1: minimal orbital set for hydrogen and helium (atomic numbers 1-2)
         # orbital_mask_line2: full orbital set for heavier elements (atomic numbers 3-10)
@@ -814,8 +811,8 @@ class QH9Dynamic(InMemoryDataset):
         # 1s [0]
         # 2s [1], 2p [3, 4, 5]
         # 3s [2], 3p [6, 7, 8], 3d [9, 10, 11, 12, 13]        
-        orbital_mask_line1 = idx_1s_2s_2p
-        orbital_mask_line2 = torch.arange(self.full_orbitals)
+        orbital_mask_line1 = torch.tensor([0, 1, 3, 4, 5]) # H: 1s, 2s, 2p
+        orbital_mask_line2 = torch.arange(self.full_orbitals) 
         
         # Assign appropriate orbital masks based on atomic number
         self.orbital_mask[self.atom_num["H"]] = orbital_mask_line1 # H: 1s, 2s, 2p
