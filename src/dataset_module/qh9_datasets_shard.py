@@ -8,6 +8,7 @@ import gdown
 import torch
 from tqdm import tqdm
 import random
+import time
 from typing import Union, List
 
 from common.metric import cal_orbital_and_energies
@@ -161,8 +162,8 @@ class QH9Stable_shard(LMDBShard_maker_db):
 
         # Calculate DFT forces
         grad_frame = mf.nuc_grad_method()
-        mo_occ = mf.get_occ(orbital_energies.squeeze().numpy(), orbital_coefficients.squeeze().numpy())
-        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze().numpy(), mo_coeff=orbital_coefficients.squeeze().numpy(), mo_occ=mo_occ)
+        mo_occ = mf.get_occ(orbital_energies.squeeze(), orbital_coefficients.squeeze())
+        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze(), mo_coeff=orbital_coefficients.squeeze(), mo_occ=mo_occ)
         
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
@@ -715,8 +716,8 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
 
         # Calculate DFT forces
         grad_frame = mf.nuc_grad_method()
-        mo_occ = mf.get_occ(orbital_energies.squeeze().numpy(), orbital_coefficients.squeeze().numpy())
-        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze().numpy(), mo_coeff=orbital_coefficients.squeeze().numpy(), mo_occ=mo_occ)
+        mo_occ = mf.get_occ(orbital_energies.squeeze(), orbital_coefficients.squeeze())
+        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze(), mo_coeff=orbital_coefficients.squeeze(), mo_occ=mo_occ)
         
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
