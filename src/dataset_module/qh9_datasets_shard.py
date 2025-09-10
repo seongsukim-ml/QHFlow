@@ -19,9 +19,20 @@ from torch_geometric.data import InMemoryDataset, Data
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index
 #
 
-# Conversion factor from Bohr to Angstrom
-ANG2BOHR = 1.8897259886
-BOHR2ANG = 1 / ANG2BOHR # 0.52917721067 - Bohr to Angstrom conversion (MD17)
+# Energy unit is Eh in pyscf
+ANG2BOHR = 1.8897261258369282     # Angstrom to Bohr conversion
+BOHR2ANG = 1.0 / ANG2BOHR         # Bohr to Angstrom conversion
+HA2meV = 27.211396641308 * 1000   # Hartree to meV conversion
+KCALPM2meV = 43.36410424180094    # kcal/mol to meV conversion
+HA2KCALPM = 627.5094740628942     # Hartree to kcal/mol
+KCALPM2HA = 1.0 / HA2KCALPM       # kcal/mol to Hartree
+
+# Force unit is Eh/Bohr in pyscf
+HA_BOHR_2_KCALPM_ANG = HA2KCALPM / BOHR2ANG      # Hartree/Bohr to kcal/mol/Angstrom
+KCALPM_ANG_2_HA_BOHR = 1.0 / HA_BOHR_2_KCALPM_ANG  # kcal/mol/Angstrom to Hartree/Bohr
+HA_BOHR_2_meV_ANG = HA2meV / BOHR2ANG      # Hartree/Bohr to meV/Angstrom
+meV_ANG_2_HA_BOHR = 1.0 / HA_BOHR_2_meV_ANG  # meV/Angstrom to Hartree/Bohr
+
 
 GoogleDriveLink = (
     "https://drive.google.com/drive/u/0/folders/1LXTC8uaOQzmb76FsuGfwSocAbK5Hshfj"
