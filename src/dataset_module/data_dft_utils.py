@@ -7,6 +7,20 @@ from common.matrix_transforms import get_convention_dict
 
 convention_dict = get_convention_dict()
 
+# Energy unit is Eh in pyscf
+ANG2BOHR = 1.8897261258369282     # Angstrom to Bohr conversion
+BOHR2ANG = 1.0 / ANG2BOHR         # Bohr to Angstrom conversion
+HA2meV = 27.211396641308 * 1000   # Hartree to meV conversion
+KCALPM2meV = 43.36410424180094    # kcal/mol to meV conversion
+HA2KCALPM = 627.5094740628942     # Hartree to kcal/mol
+KCALPM2HA = 1.0 / HA2KCALPM       # kcal/mol to Hartree
+
+# Force unit is Eh/Bohr in pyscf
+HA_BOHR_2_KCALPM_ANG = HA2KCALPM / BOHR2ANG      # Hartree/Bohr to kcal/mol/Angstrom
+KCALPM_ANG_2_HA_BOHR = 1.0 / HA_BOHR_2_KCALPM_ANG  # kcal/mol/Angstrom to Hartree/Bohr
+HA_BOHR_2_meV_ANG = HA2meV / BOHR2ANG      # Hartree/Bohr to meV/Angstrom
+meV_ANG_2_HA_BOHR = 1.0 / HA_BOHR_2_meV_ANG  # meV/Angstrom to Hartree/Bohr
+
 def init_pyscf_mol(atoms, pos, init="minao"):
     """
     Initialize PySCF Molecule object.
