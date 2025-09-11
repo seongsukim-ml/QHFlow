@@ -16,11 +16,18 @@ CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable  dataset
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol      wandb.mode=online
 
-## QH9 260k
+## QH9 260k lr_scheduler_power=3.5
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable  dataset.split=random   wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable  dataset.split=size_ood wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online prefix="_260k" dataset.total_steps=260000
 CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol      wandb.mode=online prefix="_260k" dataset.total_steps=260000
+
+## QH9 260k lr_scheduler_power=3.5 -> More Steps with higher learning rate
+CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable  dataset.split=random   wandb.mode=online prefix="_260k" dataset.total_steps=400000 scheduler_power=1.0
+CUDA_VISIBLE_DEVICES=1 python -m experiment.train_qh9 dataset=QH9Stable  dataset.split=size_ood wandb.mode=online prefix="_260k" dataset.total_steps=400000 scheduler_power=1.0
+CUDA_VISIBLE_DEVICES=2 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=geometry wandb.mode=online prefix="_260k" dataset.total_steps=400000 scheduler_power=1.0
+CUDA_VISIBLE_DEVICES=3 python -m experiment.train_qh9 dataset=QH9Dynamic dataset.split=mol      wandb.mode=online prefix="_260k" dataset.total_steps=400000 scheduler_power=1.0
+
 
 ## QH9 260k lr_scheduler_power=1.0
 CUDA_VISIBLE_DEVICES=0 python -m experiment.train_qh9 dataset=QH9Stable  dataset.split=random   wandb.mode=online prefix="_260k_p1.0" dataset.total_steps=260000 scheduler_power=1.0 # Running 

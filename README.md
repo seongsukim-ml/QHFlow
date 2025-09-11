@@ -6,14 +6,14 @@ By Seongsu Kim, Aug, 2025 [[arxiv]](https://arxiv.org/abs/2505.18817) [[PDF]](ht
 
 ## Packages and Requirements
 
-All codes are run with python 3.12 and CUDA 12.1. A similar environment should also work, as this project does not rely on some rapidly changing packages.
+All codes are tested and confirmed to work with `python 3.12` and `CUDA 12.1`. A similar environment should also work, as this project does not rely on some rapidly changing packages.
 
 ```bash
 # Example CUDA 12.1 with torch 2.4.1
 conda create -n qhflow python=3.12 psi4 -y
 conda activate qhflow
 
-pip install pyscf
+pip install pyscf==2.10.0
 pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index https://download.pytorch.org/whl/cu121
 pip install torch_geometric==2.3.0
 pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
@@ -124,13 +124,11 @@ All commands should be run from the `QHFlow/src` directory.
 - Use `CUDA_VISIBLE_DEVICES` to specify GPU devices: `CUDA_VISIBLE_DEVICES=0,1 python -m experiment.train_md17 dataset=water`
 
 **Performance Tips:**
-- For faster training, use multiple GPUs with `CUDA_VISIBLE_DEVICES=0,1,2,3`
+- For faster training, you can use multiple GPUs. For example, `CUDA_VISIBLE_DEVICES=0,1,2,3` with `strategy=ddp devices=4`
 - Monitor GPU memory usage and adjust batch size if needed
-- Use mixed precision training for memory efficiency (enabled by default)
 
 **Debugging Tips:**
 - Check logs in the `logs/` directory for detailed training information
-- Use `mode=debug` for additional debugging information
 - Monitor validation metrics to ensure proper training progress
 
 ### Train

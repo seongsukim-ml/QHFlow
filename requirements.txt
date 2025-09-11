@@ -3,14 +3,15 @@ apsw==3.45.1.0
 lmdb==1.4.1
 torch_ema==0.3
 # torch_geometric==2.3.0
+# pyscf==2.2.1
 pytorch-lightning
 tqdm==4.66.1
-wandb==0.16.0
 PyYAML==6.0.1
 ase==3.22.1
 e3nn==0.5.1
 gdown==4.6.0
 transformers==4.37.2
 tensorboard==2.16.2
-# pyscf==2.2.1
+wandb
+pandas
 hydra-core
