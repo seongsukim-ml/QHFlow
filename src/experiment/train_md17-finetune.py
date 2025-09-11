@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import hydra
-import logging
 import os
 from pathlib import Path
 from dataset_module.ori_dataset import MD17_DFT, random_split, get_mask
@@ -24,10 +23,12 @@ from pl_module import get_pl_model
 
 import torch
 
-logger = logging.getLogger(__name__)
-logger.info(f"Using torch.set_num_threads(16)")
-torch.set_num_threads(16)
+from common.custom_logger import get_logger
+logger = get_logger(__file__)
 
+NUM_THREADS = 16
+logger.info(f"Using torch.set_num_threads({NUM_THREADS})")
+torch.set_num_threads(NUM_THREADS)
 
 @hydra.main(config_path="../config_md17", config_name="config_flow-lw10-wa")
 def main(conf):
@@ -114,9 +115,7 @@ def _run_finetune_training_or_testing(mode, trainer, lit_model, train_loader, va
 
 
 def _run_evaluation(conf, pl_model_cls, test_loader, output_dir):
-    """Run evaluation mode."""
-    import torch
-    
+    """Run evaluation mode."""    
     model_ckpt = conf.model_ckpt
     lit_model = pl_model_cls.load_from_checkpoint(model_ckpt, conf=conf)
     logger.info("Model loaded")

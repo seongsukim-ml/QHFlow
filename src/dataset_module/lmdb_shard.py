@@ -1,15 +1,15 @@
 import os, json, lmdb, numpy as np
 # import zlib, msgpac
-from pathlib import Path
 import apsw
 from apsw import Connection
-import logging
 from tqdm.rich import tqdm
-from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle
-import concurrent.futures
 from typing import Union
+import concurrent.futures
+from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
+
 
 class LMDBShard_maker:
     def __init__(

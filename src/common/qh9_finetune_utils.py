@@ -2,12 +2,11 @@
 """
 Common QH9 fine-tuning utilities for experiments.
 """
-import logging
 import os
 from omegaconf import DictConfig
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__file__)
 
 def load_qh9_finetune_dataset(conf: DictConfig, root_path: str):
     """Load QH9 dataset for fine-tuning with orbital and energies calculation."""

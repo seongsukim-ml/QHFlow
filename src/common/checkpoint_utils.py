@@ -3,11 +3,11 @@
 Common checkpoint utilities for experiments.
 """
 import os
-import logging
 from pathlib import Path
 from omegaconf import DictConfig
+from common.custom_logger import set_logger
 
-logger = logging.getLogger(__name__)
+logger = set_logger()
 
 
 def get_checkpoint_path(conf: DictConfig, output_dir: Path):

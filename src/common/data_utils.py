@@ -3,12 +3,12 @@
 Common data utilities for experiments.
 """
 import os
-import logging
+from common.custom_logger import get_logger
 from torch_geometric.loader import DataLoader
 from omegaconf import DictConfig
 from dataset_module.ori_dataset import MD17_DFT, random_split, get_mask
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 def load_md17_dataset(conf: DictConfig, root_path: str):
     return MD17_DFT(

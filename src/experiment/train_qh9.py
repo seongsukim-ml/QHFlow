@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import hydra
-import logging
 import os
 from pathlib import Path
 
@@ -28,9 +27,13 @@ from pytorch_lightning.utilities.model_summary import ModelSummary
 
 import torch
 
-logger = logging.getLogger(__name__)
-logger.info(f"Using torch.set_num_threads(16)")
-torch.set_num_threads(16)
+from common.custom_logger import get_logger
+logger = get_logger(__file__)
+
+NUM_THREADS = 16
+logger.info(f"Using torch.set_num_threads({NUM_THREADS})")
+torch.set_num_threads(NUM_THREADS)
+
 
 # Mode descriptions
 MODE_DESCRIPTIONS = {

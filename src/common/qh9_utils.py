@@ -2,14 +2,14 @@
 """
 Common QH9 utilities for experiments.
 """
-import logging
 import os
 from torch_geometric.loader import DataLoader
 from omegaconf import DictConfig
 from torch.utils.data import DistributedSampler
 import torch.distributed as dist
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 
 def load_qh9_dataset(conf: DictConfig, root_path: str):

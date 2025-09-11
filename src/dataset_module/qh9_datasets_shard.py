@@ -2,7 +2,7 @@ import numpy as np
 import lmdb
 import pickle
 import os
-import logging
+from common.custom_logger import setup_global_logger, get_logger
 import json
 import gdown
 import torch
@@ -19,6 +19,8 @@ from common.dft_utils import calc_overlap_and_init_hamiltonian, calc_dm0
 from torch_geometric.data import InMemoryDataset, Data
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index
 from common.units import *
+
+logger = get_logger(__file__)
 
 GoogleDriveLink = (
     "https://drive.google.com/drive/u/0/folders/1LXTC8uaOQzmb76FsuGfwSocAbK5Hshfj"
@@ -1111,16 +1113,7 @@ def parse_shard_idx(shard_idx_str):
         return [int(shard_idx_str)]
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),  # Console output
-            logging.FileHandler('qh9_datasets.log')  # File output
-        ]
-    )
-
-    logger = logging.getLogger(__name__)
+    setup_global_logger()
 
     import argparse
 

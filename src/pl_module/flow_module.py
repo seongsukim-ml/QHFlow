@@ -20,7 +20,7 @@ F integration
 """
 
 import torch
-import logging
+from common.custom_logger import get_logger
 import time
 from tqdm.rich import tqdm
 from torch_scatter import scatter_sum
@@ -41,7 +41,7 @@ import os
 # Constants and Configuration
 # ==========================================
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 BOHR2ANG = 1 / 1.8897259886  # 0.52917721067
 
 # Flow model defaults

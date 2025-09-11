@@ -9,15 +9,12 @@ from ase.db import connect
 from argparse import Namespace
 from torch_geometric.data import InMemoryDataset, download_url
 import warnings
-
-import logging
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index, _accumulate
-
 import concurrent.futures
 from pyscf import gto, scf, dft
+from common.custom_logger import get_logger
 
-logger = logging.getLogger()
-
+logger = get_logger(__file__)
 
 convention_dict = {
     "pyscf_631G": Namespace(

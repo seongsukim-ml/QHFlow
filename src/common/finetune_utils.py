@@ -2,12 +2,11 @@
 """
 Common fine-tuning utilities for experiments.
 """
-import logging
 from pathlib import Path
 from omegaconf import DictConfig
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__file__)
 
 def setup_finetune_model(conf: DictConfig, pl_model_cls, output_dir: Path):
     """Setup fine-tuning model with pretrained weights."""

@@ -7,7 +7,7 @@ from typing import List
 
 from torch_ema import ExponentialMovingAverage
 from transformers import get_polynomial_decay_schedule_with_warmup
-import logging
+from common.custom_logger import get_logger
 import time
 import numpy as np
 from tqdm import tqdm
@@ -27,7 +27,7 @@ from common.matrix_transforms import get_convention_dict, _build_final_matrix, _
 # Constants and Configuration
 # ==========================================
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 # Unit conversion constants
 BOHR2ANG = 1 / 1.8897259886  # 0.52917721067 - Bohr to Angstrom conversion (MD17)

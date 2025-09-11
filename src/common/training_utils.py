@@ -2,14 +2,14 @@
 """
 Common training utilities for experiments.
 """
-import logging
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
 from omegaconf import DictConfig
 from pathlib import Path
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 
 def setup_callbacks(conf: DictConfig, output_dir: Path):

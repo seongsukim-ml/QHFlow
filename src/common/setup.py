@@ -5,14 +5,14 @@ Common setup utilities for experiments.
 import os
 import sys
 import torch
-import logging
 import shutil
 import subprocess
 import pytorch_lightning as pl
 from pathlib import Path
 from omegaconf import DictConfig
+from common.custom_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 # Mode mapping dictionary
 MODE_DICT = {

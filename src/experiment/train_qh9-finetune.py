@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import hydra
-import logging
 import os
 import torch.multiprocessing
 from pathlib import Path
@@ -33,10 +32,12 @@ warnings.filterwarnings("ignore")
 from pl_module import get_pl_model
 
 import torch
+from common.custom_logger import get_logger
+logger = get_logger(__file__)
 
-logger = logging.getLogger(__name__)
-logger.info(f"Using torch.set_num_threads(16)")
-torch.set_num_threads(16)
+NUM_THREADS = 16
+logger.info(f"Using torch.set_num_threads({NUM_THREADS})")
+torch.set_num_threads(NUM_THREADS)
 
 
 @hydra.main(config_path="../config_qh9", config_name="config_flow-cont-ft-wa")
