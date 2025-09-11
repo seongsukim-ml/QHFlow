@@ -63,7 +63,7 @@ gdown https://drive.google.com/uc?id=1sbf-sFhh3ZmhXgTcN2ke_la39MaG0Yho -O ./data
 Processing from raw files to torch datasets runs automatically on the first training run.
 Or, you can process manually with the sharding process:
 ```bash
-python -m dataset_module.qh9_datasets_shard \
+python -m dataset_module.qh9_datasets_split \
     --name=${NAME}  \
     --num_chunks=30 --chunk_idx=${DB_IDX} \
     --split=${SPLIT}
@@ -74,87 +74,9 @@ where NAME is the dataset name (`QH9Stable` / `QH9Dynamic`). Use the following S
 
 Data is assembled automatically when the final chunk is processed.
 
-**Note**: The legacy `qh9_datasets_split.py` module is deprecated. Use `qh9_datasets_shard.py` for all new dataset processing operations.
+**Note**: The legacy `qh9_datasets_split.py` module will be deprecated. Use `qh9_datasets_shard.py` for all new dataset processing operations.
 
 **Note:** We plan to provide pre-processed datasets for all datasets to facilitate easier setup and usage.
-
-## Dataset Module (`src/dataset_module/`)
-
-The `dataset_module/` directory contains all the dataset loading and processing utilities for QHFlow. This module handles the conversion from raw database files to PyTorch Geometric datasets optimized for training.
-
-### Core Components
-
-#### `qh9_datasets_shard.py` - Main Dataset Classes
-- **QH9Stable_shard**: Dataset class for QH9Stable with LMDB sharding support
-- **QH9Dynamic_shard**: Dataset class for QH9Dynamic with LMDB sharding support
-- Features:
-  - Efficient LMDB-based data storage and loading
-  - Automatic data sharding for large datasets
-  - Support for different split strategies (random, size_ood, geometry, mol)
-  - Integration with PyTorch Geometric Data format
-
-#### `lmdb_shard.py` - LMDB Sharding Utilities
-- **LMDBShard_maker**: Base class for creating LMDB shards from database files
-- Features:
-  - Parallel processing for efficient data conversion
-  - Configurable number of shards and workers
-  - Automatic shard management and indexing
-  - Memory-efficient processing of large datasets
-
-#### `data_dft_utils.py` - DFT Calculation Utilities
-- **calc_overlap_and_init_hamiltonian**: Calculate overlap matrices and initial Hamiltonians using PySCF
-- **calc_dm0**: Calculate initial density matrices
-- **init_pyscf_mol**: Initialize PySCF molecule objects
-- Features:
-  - Integration with PySCF for quantum chemistry calculations
-  - Support for different basis sets (def2svp, 6-31G)
-  - Automatic unit conversions (Angstrom ↔ Bohr)
-
-#### `ori_dataset.py` - Original Dataset Implementations
-- Legacy dataset classes for backward compatibility
-- Contains original implementations before sharding optimization
-- Used as reference for dataset structure and data processing
-
-#### `qh9_datasets_split.py` - Legacy Split Utilities ⚠️ **DEPRECATED**
-- **Status**: This module is deprecated and will be removed in future versions
-- **Replacement**: Use `qh9_datasets_shard.py` for all new dataset operations
-- **Migration**: Existing scripts using this module should be updated to use the sharded versions
-- **Reason for Deprecation**: The sharded implementation provides better memory efficiency and faster loading times
-
-### Usage Examples
-
-```python
-# Using the new sharded dataset classes
-from dataset_module.qh9_datasets_shard import QH9Stable_shard, QH9Dynamic_shard
-
-# Initialize QH9Stable dataset with sharding
-dataset = QH9Stable_shard(
-    root_path="./dataset/QH9Stable/raw/",
-    shard_num=30,
-    split="random"
-)
-
-# Initialize QH9Dynamic dataset
-dataset = QH9Dynamic_shard(
-    root_path="./dataset/QH9Dynamic_300k/raw/",
-    shard_num=30,
-    split="geometry"
-)
-```
-
-### Data Processing Pipeline
-
-1. **Raw Data**: SQLite database files (`.db`) containing molecular geometries and properties
-2. **Sharding**: Data is split into multiple LMDB shards for efficient loading
-3. **Processing**: Each shard is processed in parallel to extract molecular features
-4. **Loading**: PyTorch Geometric Data objects are created for training
-
-### Performance Benefits
-
-- **Memory Efficiency**: LMDB sharding reduces memory usage during training
-- **Faster Loading**: Parallel processing and optimized storage format
-- **Scalability**: Supports datasets with millions of molecular conformations
-- **Flexibility**: Configurable shard sizes and processing parameters
 
 ## Saved Checkpoints
 
