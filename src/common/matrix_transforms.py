@@ -218,6 +218,28 @@ def _matrix_transform_single(hamiltonian, atoms, convention_rule):
 
     return hamiltonian_new
 
+def matrix_transform_single(hamiltonian, atoms, convention="pyscf_def2svp"):
+    """
+    Transform matrix between different orbital conventions - CUDA optimized version.
+    
+    This function reorders and transforms the hamiltonian matrix according to the
+    specified orbital convention, handling different basis set orderings.
+    
+    Args:
+        hamiltonian (torch.Tensor): Hamiltonian matrix to transform
+        atoms (torch.Tensor): Atomic numbers tensor
+        convention (str): Orbital convention to use (default: "pyscf_def2svp")
+        
+    Returns:
+        torch.Tensor: Transformed hamiltonian matrix
+        
+    Raises:
+        AssertionError: If convention is not in CONVENTION_DICT
+    """
+    assert convention in get_convention_dict(), f"Invalid convention: {convention}"
+    conv = get_convention_dict()[convention]
+    return _matrix_transform_single(hamiltonian, atoms, conv)
+
 def cut_matrix(matrix, atoms, orbital_mask, full_orbitals, last_dim=False):
     """
     Cut matrix into atomic blocks with optimized performance.
@@ -361,7 +383,6 @@ def _cut_matrix_2d(matrix, atoms, orbital_mask, full_orbitals):
         torch.stack(non_diagonal_masks, dim=0),   # [n_edges, full_orbitals, full_orbitals]
         edge_index_tensor,                        # [2, n_edges]
     )
-
 
 def _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals):
     """
@@ -556,3 +577,4 @@ def unpack_upper_triangle(packed: np.ndarray, n: int):
     M[iu] = packed
     M[(iu[1], iu[0])] = packed  # mirror
     return M
+

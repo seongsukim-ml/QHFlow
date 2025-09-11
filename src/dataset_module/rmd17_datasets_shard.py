@@ -13,7 +13,7 @@ from typing import Union, List
 from common.metric import cal_orbital_and_energies
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle, _matrix_transform_single, get_convention_dict, _cut_matrix_3d, _cut_matrix_3d_last
 from dataset_module.lmdb_shard import LMDBShard_maker_db
-from dataset_module.data_dft_utils import calc_overlap_and_init_hamiltonian, calc_dm0
+from common.dft_utils import calc_overlap_and_init_hamiltonian, calc_dm0
 
 from torch_geometric.data import InMemoryDataset, Data
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index
