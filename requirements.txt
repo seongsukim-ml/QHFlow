@@ -12,6 +12,7 @@ e3nn==0.5.1
 gdown==4.6.0
 transformers==4.37.2
 tensorboard==2.16.2
+rich
 wandb
 pandas
 hydra-core

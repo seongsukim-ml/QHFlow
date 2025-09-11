@@ -6,7 +6,7 @@ import logging
 import json
 import gdown
 import torch
-from tqdm import tqdm
+from tqdm.rich import tqdm
 import random
 import time
 from typing import Union, List

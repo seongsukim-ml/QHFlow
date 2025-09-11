@@ -4,7 +4,7 @@ from torch import Tensor
 import tarfile
 import numpy as np
 import os.path as osp
-from tqdm import tqdm
+from tqdm.rich import tqdm
 from ase.db import connect
 from argparse import Namespace
 from torch_geometric.data import InMemoryDataset, download_url

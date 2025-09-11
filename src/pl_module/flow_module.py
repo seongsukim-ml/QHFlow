@@ -22,7 +22,7 @@ F integration
 import torch
 import logging
 import time
-from tqdm import tqdm
+from tqdm.rich import tqdm
 from torch_scatter import scatter_sum
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor

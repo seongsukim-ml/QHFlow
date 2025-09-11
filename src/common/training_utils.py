@@ -5,7 +5,7 @@ Common training utilities for experiments.
 import logging
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.wandb import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
 from omegaconf import DictConfig
 from pathlib import Path
 
@@ -31,6 +31,10 @@ def setup_callbacks(conf: DictConfig, output_dir: Path):
     # Learning rate monitor
     lr_monitor = LearningRateMonitor(logging_interval="step")
     callbacks.append(lr_monitor)
+    
+    # Rich progress bar
+    rich_progress_bar = RichProgressBar(leave=True)
+    callbacks.append(rich_progress_bar)
     
     return callbacks
 

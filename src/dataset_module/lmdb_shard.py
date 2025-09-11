@@ -4,7 +4,7 @@ from pathlib import Path
 import apsw
 from apsw import Connection
 import logging
-from tqdm import tqdm
+from tqdm.rich import tqdm
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle
 import concurrent.futures
 from typing import Union

@@ -4,7 +4,7 @@ from torch import Tensor
 from torch_geometric.data import Data
 from pyscf import gto
 from typing import Optional, List
-from tqdm import tqdm
+from tqdm.rich import tqdm
 from copy import deepcopy
 from ase.data import chemical_symbols, atomic_numbers
 import psi4

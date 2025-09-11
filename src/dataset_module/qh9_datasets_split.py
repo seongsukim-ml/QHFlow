@@ -26,7 +26,7 @@ import pickle
 import gdown
 import pyscf
 from pyscf import gto
-from tqdm import tqdm
+from tqdm.rich import tqdm
 from apsw import Connection
 from torch_geometric.data import InMemoryDataset, Data
 from pyscf import gto, scf, dft
