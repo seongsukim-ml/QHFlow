@@ -7,6 +7,7 @@ import logging
 from tqdm import tqdm
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle
 import concurrent.futures
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,8 @@ class LMDBShard_maker:
     def make_new_shard(self, idx, max_workers=8, get_keys_list=True):
         raise NotImplementedError("make_new_shard method is not implemented")
     
-    def process(self, idx = None):
-        assert isinstance(idx, (int, list, None)), f"Index {idx} is not an integer or list"
+    def process(self, idx = None):        
+        assert isinstance(idx, Union[int, list, None]), f"Index {idx} is not an integer or list"
         logger.info(f"Loading the database from {self.root_path}")
         logger.info(f"Saving processed data to {self.save_path}")
         logger.info(f"Saving shards to {self.shard_dir_path}")

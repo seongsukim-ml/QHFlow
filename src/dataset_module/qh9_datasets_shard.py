@@ -1097,7 +1097,9 @@ class QH9Dynamic(InMemoryDataset):
 
 def parse_shard_idx(shard_idx_str):
     """Parse shard_idx string into a list of integers"""
-    if ',' in shard_idx_str:
+    if shard_idx_str == "-1":
+        return int(-1)
+    elif ',' in shard_idx_str:
         # Comma-separated list: "0,1,2,3"
         return [int(x.strip()) for x in shard_idx_str.split(',')]
     elif '-' in shard_idx_str and shard_idx_str.count('-') == 1:

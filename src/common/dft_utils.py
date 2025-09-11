@@ -91,6 +91,7 @@ def calc_overlap_and_init_hamiltonian(
     init="minao",
     basis="def2svp",
     xc="b3lyp",
+    unit="ang",
     out_mf=False,
 ):
     """
@@ -105,7 +106,7 @@ def calc_overlap_and_init_hamiltonian(
     Returns:
         tuple: (overlap_matrix, initial_hamiltonian_matrix)
     """
-    mol = init_pyscf_mol(atoms, pos, init)
+    mol = init_pyscf_mol(atoms, pos, unit=unit)
 
     overlap_matrix = mol.intor("int1e_ovlp")
     mf = dft.RKS(mol)
