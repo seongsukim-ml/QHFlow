@@ -2,8 +2,8 @@ from .QHFlow import QHFlow
 from .Real_QHNet import QHNet as Real_QHNet
 from .Real_QHNet_qh9 import QHNet as Real_QHNet_qh9
 
-import logging
-logger = logging.getLogger(__name__)
+from common.custom_logger import get_logger
+logger = get_logger(__name__)
 
 __all__ = ["get_model", "get_default_model_args", "default_model_args_qh9", "default_model_args_md17"]
 
@@ -23,7 +23,7 @@ def get_model(args):
         "ham_hidden": getattr(args, "ham_hidden", 24 * 24 // 2),
         "dataset_type": getattr(args, "dataset_type", "qh9"),
     }
-    logging.info(f"model_args: {model_args}")
+    logger.info(f"model_args: {model_args}")
     model_dict ={
         "Real_QHNet".lower():Real_QHNet,
         "Real_QHNet_qh9".lower():Real_QHNet_qh9,

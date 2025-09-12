@@ -1,9 +1,9 @@
 {
-    "enable_logger": false,
-    "use_rich": false,
+    "enable_logger": true,
+    "use_rich": true,
     "log_level": "INFO",
     "log_file_path": "./log.log",
-    "console_format": "%(levelname)s: %(message)s",
+    "console_format": "[%(asctime)s] %(levelname)-8s [%(filename)s:%(lineno)d] >> %(message)s",
     "file_format": "[%(asctime)s]\\t%(levelname)s\\t[%(filename)s:%(funcName)s:%(lineno)s]\\t>> %(message)s",
     "rich_format": "[%(filename)s:%(lineno)s] >> %(message)s"
 }

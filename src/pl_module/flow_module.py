@@ -1388,24 +1388,23 @@ class LitModel_flow(LitModel):
                 )
 
             for i in range(self.cur_batch_size):
-                pred = {
-                    "pred_hamiltonian": sample["hamiltonian"][i].cpu(),
+                config = {
                     "overlap": gt_overlap[i].cpu(),
                     "pos": batch_one[i].pos.cpu(),
-                    "atoms": batch_one[i].atoms.squeeze(1).cpu(),
+                    "atoms": batch_one[i].atoms.cpu(),
                     "format":"pyscf_def2svp",
                     "length_unit":"angstrom",
+                }
+                pred = {
+                    "pred_hamiltonian": sample["hamiltonian"][i].cpu(),
+                    **config,
                 }
                 if hasattr(self, 'output_dir'):
                     torch.save(pred, self.output_dir / "pred" / f"pred_{batch_idx}_{i}.pt")
                 if self._batch_has_ground_truth_hamiltonian(batch):
                     gt = {
                         "hamiltonian": gt_hamiltonian[i].cpu(),
-                        "overlap": gt_overlap[i].cpu(),
-                        "pos": batch_one[i].pos.cpu(),
-                        "atoms": batch_one[i].atoms.squeeze(1).cpu(),
-                        "format":"pyscf_def2svp",
-                        "length_unit":"angstrom",
+                        **config,
                     }
                     if hasattr(self, 'output_dir'):
                         torch.save(gt, self.output_dir / "gt" / f"gt_{batch_idx}_{i}.pt")

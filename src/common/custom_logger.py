@@ -51,6 +51,7 @@ LOG_PATH = CONFIG["log_file_path"]
 RICH_FORMAT = CONFIG["rich_format"]
 FILE_HANDLER_FORMAT = CONFIG["file_format"]
 CONSOLE_FORMAT = CONFIG["console_format"]
+LOG_LEVEL = getattr(logging, CONFIG["log_level"].upper(), logging.INFO)
 
 
 # Global logger instance
@@ -63,10 +64,19 @@ def setup_global_logger():
     if _global_logger is not None:
         return _global_logger
     
+    # Clear all existing loggers and handlers to prevent duplication
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Disable propagation to prevent duplicate messages
+    root_logger.propagate = False
+    
     if not ENABLE_LOGGER:
         # When logger is disabled, return basic console logger (no file logging)
         _global_logger = logging.getLogger("default")
-        _global_logger.setLevel(logging.INFO)
+        _global_logger.setLevel(LOG_LEVEL)
+        _global_logger.propagate = False
         
         # Remove existing handlers
         for handler in _global_logger.handlers[:]:
@@ -74,28 +84,36 @@ def setup_global_logger():
         
         # Add only basic console handler
         console_handler = logging.StreamHandler()
+        console_handler.setLevel(LOG_LEVEL)
         console_handler.setFormatter(logging.Formatter(CONSOLE_FORMAT))
         _global_logger.addHandler(console_handler)
         
         return _global_logger
     
+    # Create a fresh logger instance
+    _global_logger = logging.getLogger("qhflow")
+    _global_logger.setLevel(LOG_LEVEL)
+    _global_logger.propagate = False
+    
+    # Remove any existing handlers
+    for handler in _global_logger.handlers[:]:
+        _global_logger.removeHandler(handler)
+    
     if USE_RICH:
-        logging.basicConfig(
-            level="NOTSET",
-            format=RICH_FORMAT,
-            handlers=[RichHandler(rich_tracebacks=True)]
-        )
-        _global_logger = logging.getLogger("rich")
+        # Create RichHandler with custom format
+        rich_handler = RichHandler(rich_tracebacks=True, show_path=False, show_time=False)
+        rich_handler.setFormatter(logging.Formatter(RICH_FORMAT))
+        _global_logger.addHandler(rich_handler)
     else:
         # Use basic console handler when rich is disabled
-        logging.basicConfig(
-            level="NOTSET",
-            format=RICH_FORMAT,
-            handlers=[logging.StreamHandler()]
-        )
-        _global_logger = logging.getLogger("basic")
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(LOG_LEVEL)
+        console_handler.setFormatter(logging.Formatter(CONSOLE_FORMAT))
+        _global_logger.addHandler(console_handler)
 
+    # Add file handler
     file_handler = logging.FileHandler(LOG_PATH, mode="a", encoding="utf-8")
+    file_handler.setLevel(LOG_LEVEL)
     file_handler.setFormatter(logging.Formatter(FILE_HANDLER_FORMAT))
     _global_logger.addHandler(file_handler)
 
