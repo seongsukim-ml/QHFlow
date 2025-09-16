@@ -5,6 +5,7 @@ Common training utilities for experiments.
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
+from pytorch_lightning.callbacks.progress.rich_progress import RichProgressBarTheme
 from omegaconf import DictConfig
 from pathlib import Path
 from common.custom_logger import get_logger
@@ -33,7 +34,8 @@ def setup_callbacks(conf: DictConfig, output_dir: Path, loss_format: str = ".7f"
     callbacks.append(lr_monitor)
     
     # Rich progress bar
-    rich_progress_bar = RichProgressBar(leave=True)
+    rich_progress_bar_theme = RichProgressBarTheme(metrics_format=".7f")
+    rich_progress_bar = RichProgressBar(leave=False, theme=rich_progress_bar_theme)
     callbacks.append(rich_progress_bar)
     
     return callbacks

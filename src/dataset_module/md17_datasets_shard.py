@@ -197,7 +197,7 @@ class MD17_DFT_Shard(InMemoryDataset):
         self.use_parallel_preprocess = use_parallel_preprocess
         self.split = split
         
-        self.lmdb_path_list = [os.path.join(self._processed_path,self.shard_dir_name, f"shard_{i:02d}.lmdb") for i in range(self.shard_num)]
+        self.lmdb_path_list = [os.path.join(self._processed_path,self.shard_dir_name, f"shard_{i:03d}.lmdb") for i in range(self.shard_num)]
         
         self.full_orbitals = 14
         self.orbital_mask = {}
@@ -249,7 +249,6 @@ class MD17_DFT_Shard(InMemoryDataset):
 
         super().__init__(self.folder, transform, pre_transform, pre_filter)
         
-
         self._load_index_info()
         
         
