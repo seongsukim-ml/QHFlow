@@ -344,6 +344,7 @@ class LMDBShard_maker_db(LMDBShard_maker):
         shard_dir_name="lmdbs",
         overwrite=False,
         make_split_info=True,
+        table_name="data",
     ):
         super().__init__(
             root_path=root_path,
@@ -358,6 +359,7 @@ class LMDBShard_maker_db(LMDBShard_maker):
     
         # overwrite the shard if it already exists
         self.overwrite = overwrite
+        self.table_name = table_name
 
         self.db = None
         self.cursor = None
@@ -510,7 +512,7 @@ class LMDBShard_maker_db(LMDBShard_maker):
         # Loading the batch data from database (Loading all data from database is too slow)
         logger.info(f"Loading data from database for shard {idx}")
         data_chunk = self.cursor.execute(
-            f"SELECT * FROM data LIMIT {self.end_idx_list[idx] - self.start_idx_list[idx]} OFFSET {self.start_idx_list[idx]}"
+            f"SELECT * FROM {self.table_name} LIMIT {self.end_idx_list[idx] - self.start_idx_list[idx]} OFFSET {self.start_idx_list[idx]}"
         ).fetchall()
 
         if get_keys_list:

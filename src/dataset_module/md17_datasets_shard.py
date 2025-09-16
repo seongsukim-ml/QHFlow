@@ -6,7 +6,7 @@ from common.custom_logger import setup_global_logger, get_logger
 import json
 import gdown
 import torch
-from tqdm.rich import tqdm
+from tqdm import tqdm
 import random
 import time
 import tarfile
@@ -20,6 +20,8 @@ from common.dft_utils import calc_overlap_and_init_hamiltonian, calc_dm0
 from torch_geometric.data import InMemoryDataset, Data, download_url
 from utils import AOData, Onsite_3idx_Overlap_Integral, build_molecule, build_AO_index
 from common.units import *
+from ase.db import connect
+from ase.db.core import b2o, o2b, bytes_to_object, object_to_bytes
 
 logger = get_logger(__file__)
 
@@ -54,12 +56,11 @@ class MD17_shard(LMDBShard_maker_db):
             **kwargs,
         )
         self.split = split
-        assert self.split in ["random", "size_ood"], f"Split {self.split} for QH9Stable is not supported"
+        assert self.split in ["random", None], f"Split {self.split} for MD17 is not supported"
         if self.split == "random":
-            self.split_path = os.path.join(self.save_path, "processed_QH9Stable_random_12.json")
-        elif self.split == "size_ood":
-            self.split_path = os.path.join(self.save_path, "processed_QH9Stable_size_ood.json")
-
+            self.split_path = os.path.join(self.save_path, "random.json")
+        elif self.split is None:
+            self.split_path = None
         # if cal_orbital_and_energies is True, data will contain orbital energies and coefficients
         self.cal_orbital_and_energies = cal_orbital_and_energies
 
@@ -106,21 +107,17 @@ class MD17_shard(LMDBShard_maker_db):
             tuple: (key, data_dict) for LMDB storage
 
         Note:
-            QH9Stable.db data format: (To be updated)
-                0: id (INTEGER, np.int32) (PRIMARY KEY) NOT NULL index
-                1: N (INTEGER, np.int32) number of atoms
-                2: Z (BLOB, np.int32) atomic numbers
-                3: pos (BLOB, np.float64) atomic positions / unit: angstrom 
-                4: Ham (BLOB, np.float64) hamiltonian matrix / unit: hartree / pyscf convention
+            MD17.db data format: (To be updated)
       """
         data, data_idx = key_data_pair      
         key = int(data_idx).to_bytes(length=4, byteorder="big") # real key is not used
-        pos    = torch.tensor(data["positions"], dtype=torch.float64) # unit: angstrom
-        atoms  = torch.tensor(data["numbers"], dtype=torch.int64).view(-1, 1)
-        energy = torch.tensor(data["energy"], dtype=torch.float64).item()
-        force  = torch.tensor(data["forces"], dtype=torch.float64).numpy().tobytes()
-        data_hamiltonian = data["hamiltonian"]
-        # overlap     = data["overlap"]
+        pos = np.frombuffer(data[6], dtype=np.float64)
+        atoms = np.frombuffer(data[5], dtype=np.int32)
+        data_dict = bytes_to_object(data[26])
+        force = data_dict["forces"]
+        energy = data_dict["energy"]
+        data_hamiltonian = data_dict["hamiltonian"]
+        # data_overlap = data_dict["overlap"]
 
         ovlp, init_ham, mf = calc_overlap_and_init_hamiltonian(atoms, pos.reshape(-1, 3), out_mf=True)
         mf.kernel()
@@ -151,8 +148,8 @@ class MD17_shard(LMDBShard_maker_db):
         ori_data_dict = {
             # "id": data[0],
             "num_nodes": pos.shape[0],
-            "atoms": atoms.numpy().tobytes(),
-            "pos": pos.numpy().tobytes(),  # unit: angstrom
+            "atoms": atoms.tobytes(),
+            "pos": pos.tobytes(),  # unit: angstrom
             "energy": energy.item(),
             "force": force.tobytes(),
             "dft_energy": dft_energy, # unit: Eh
@@ -186,9 +183,10 @@ class MD17_DFT_Shard(InMemoryDataset):
         shard_idx=-1,
         max_workers_preprocess=8,
         use_parallel_preprocess=False,
+        split="random",
     ):
         self.name = name
-        self.folder = os.path.join(root, self.name)
+        self.folder = os.path.join(root, self.name + prefix)
         self.processd_dir_name = "processed"
         self.shard_dir_name = "lmdbs"
         self._processed_path = os.path.join(self.folder, self.processd_dir_name)
@@ -197,7 +195,8 @@ class MD17_DFT_Shard(InMemoryDataset):
         self.shard_idx = shard_idx
         self.max_workers_preprocess = max_workers_preprocess
         self.use_parallel_preprocess = use_parallel_preprocess
-
+        self.split = split
+        
         self.lmdb_path_list = [os.path.join(self._processed_path,self.shard_dir_name, f"shard_{i:02d}.lmdb") for i in range(self.shard_num)]
         
         self.full_orbitals = 14
@@ -245,8 +244,30 @@ class MD17_DFT_Shard(InMemoryDataset):
         
         self.orbitals = tuple(orbitals)
 
-        super().__init__(root, transform, pre_transform, pre_filter)
+        self._db_envs = {}  # Cache for LMDB environments by shard index
+        self.shard_idx_list = [] # Mapping from data index to shard index
+
+        super().__init__(self.folder, transform, pre_transform, pre_filter)
         
+
+        self._load_index_info()
+        
+        
+    def _load_index_info(self):
+        with open(os.path.join(self._processed_path, "index.json"), "r") as f:
+            self.index_info = json.load(f)
+        self.index_info = self.index_info["index"]
+        self.shard_idx_list = []
+        self.shard_data_idx_list = []
+        for idx, index_info in enumerate(self.index_info):
+            shard_idx, cur_idx, shard_data_idx = index_info
+            assert cur_idx == idx, f"Shard index {cur_idx} is not equal to the index {idx}"
+            self.shard_idx_list.append(shard_idx)
+            self.shard_data_idx_list.append(shard_data_idx)
+        self.shard_idx_list = torch.tensor(self.shard_idx_list, dtype=torch.int64)
+        max_shard_idx = torch.max(self.shard_idx_list)
+        assert max_shard_idx == self.shard_num - 1, f"Max shard index {max_shard_idx} is not equal to the number of shards {self.shard_num}"
+
     @property
     def raw_file_names(self):
         if self.name == "ethanol":
@@ -305,26 +326,22 @@ class MD17_DFT_Shard(InMemoryDataset):
         return torch.tensor(AO_l_index)
     
     def setup_Q(self):
-        self.Q = (
-            torch.stack([
-                    torch.block_diag(*[self.Q_dict[z][l] for z in self.atoms])
-                    for l in range(60)]
-            ).double().numpy()
-        )
-        self.Q = (
-            torch.from_numpy(
-                self.matrix_transform(self.Q, self.atoms, convention="pyscf_def2svp_to_e3nn")
-            ).double().permute(1, 2, 0)
-        )
-        self.Q[:, :, 16:40] = (
-            self.Q[:, :, 16:40]
+        Q_blocks = []
+        for l in range(60):
+            block_diag_components = [self.Q_dict[z][l] for z in self.atoms]
+            Q_blocks.append(torch.block_diag(*block_diag_components))
+        Q = torch.stack(Q_blocks)  # [60, h_dim, h_dim]
+        Q = self.matrix_transform(Q, torch.tensor(self.atoms), convention="pyscf_def2svp_to_e3nn").permute(1, 2, 0) #[h_dim, h_dim, 60]
+        Q[:, :, 16:40] = (
+            Q[:, :, 16:40]
             .reshape(self.hamiltonian_size, self.hamiltonian_size, -1, 3)[:, :, :, [1, 2, 0]]
             .reshape(self.hamiltonian_size, self.hamiltonian_size, 24)
         )
+        self.Q = Q
     
     def process(self):
-        self.MD17_DFT_Shard = MD17_DFT_Shard(
-            root_path=self.raw_paths[0],
+        self.MD17_DFT_Shard = MD17_shard(
+            root_path=self.raw_paths[1],
             shard_num=self.shard_num,
             save_path=self.folder,
             max_workers=self.max_workers_preprocess,
@@ -332,6 +349,7 @@ class MD17_DFT_Shard(InMemoryDataset):
             shard_dir_name=self.shard_dir_name,
             use_parallel=self.use_parallel_preprocess,
             split=self.split,
+            table_name="systems",
         )
         
         if self.shard_idx == -1 or self.shard_idx is None:
@@ -512,13 +530,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("--name", type=str, default="water")
     parser.add_argument("--pdb", action="store_true")
-    parser.add_argument("--shard_idx", type=int, default=0)
+    parser.add_argument("--shard_idx", type=str, default="-1")
     parser.add_argument("--shard_num", type=int, default=10)
     parser.add_argument("--split", type=str, default=None)
     parser.add_argument("--prefix", type=str, default="_shard")
 
     args = parser.parse_args()
-    args.shard_idx = parse_shard_idx(args.shard_idx)
+    shard_idx = parse_shard_idx(args.shard_idx)
+    logger.info(f"Shard index: {shard_idx}")
     torch.set_num_threads(4)
 
     os.environ["OMP_NUM_THREADS"] = "4"
@@ -530,7 +549,7 @@ if __name__ == "__main__":
     dataset = MD17_DFT_Shard(
         root=args.root,
         name=args.name,
-        shard_idx=args.shard_idx,
+        shard_idx=shard_idx,
         shard_num=args.shard_num,
         split=args.split,
         prefix=args.prefix,
