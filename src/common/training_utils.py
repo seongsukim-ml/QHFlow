@@ -12,14 +12,14 @@ from common.custom_logger import get_logger
 logger = get_logger(__file__)
 
 
-def setup_callbacks(conf: DictConfig, output_dir: Path):
+def setup_callbacks(conf: DictConfig, output_dir: Path, loss_format: str = ".7f"):
     """Setup training callbacks."""
     callbacks = []
     
     # Model checkpoint callback
     checkpoint_callback = ModelCheckpoint(
         dirpath=output_dir / "checkpoints",
-        filename="weights-{epoch:02d}-{val_loss:.2f}", # {epoch:02d} is the number of epoch
+        filename="weights-{epoch:02d}-{val_loss:" + loss_format + "}", # {epoch:02d} is the number of epoch
         monitor=conf.get("monitor", "val/loss"),
         mode=conf.get("monitor_mode", "min"),
         save_top_k=conf.get("save_top_k", 1),

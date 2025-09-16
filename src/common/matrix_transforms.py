@@ -1,21 +1,131 @@
+"""
+Matrix Transforms Module
+
+This module provides utility functions for Hamiltonian and overlap matrix transformations,
+including orbital transformations and matrix transformations.
+"""
+
 import torch
 import numpy as np
 from argparse import Namespace
 
+# Periodic Table of Elements
+# -----------------------------------------------------------------------------------------------
+#   │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │ 7  │ 8  │ 9  │ 10 │ 11 │ 12 │ 13 │ 14 │ 15 │ 16 │ 17 │ 18 │
+#   ┌────┐                                                                               ┌────┐
+# 1 │ H  │ 2                                                      13   14   15   16   17 │ He │
+#   │ 1  │                                                                               │ 2  │
+#   ├────┼────┐                                                 ┌────┬────┬────┬────┬────┼────┤
+# 2 │ Li │ Be │                                                 │ B  │ C  │ N  │ O  │ F  │ Ne │
+#   │ 3  │ 4  │                                                 │ 5  │ 6  │ 7  │ 8  │ 9  │ 10 │
+#   ├────┼────┤                                                 ├────┼────┼────┼────┼────┼────┤
+# 3 │ Na │ Mg │ 3    4    5    6    7    8    9    10   11   12 │ Al │ Si │ P  │ S  │ Cl │ Ar │
+#   │ 11 │ 12 │                                                 │ 13 │ 14 │ 15 │ 16 │ 17 │ 18 │
+#   ├────┼────┼────┬────┬────┬────┬────┬────┬────┬────┬────┬────┼────┼────┼────┼────┼────┼────┤
+# 4 │ K  │ Ca │ Sc │ Ti │ V  │ Cr │ Mn │ Fe │ Co │ Ni │ Cu │ Zn │ Ga │ Ge │ As │ Se │ Br │ Kr │
+#   │ 19 │ 20 │ 21 │ 22 │ 23 │ 24 │ 25 │ 26 │ 27 │ 28 │ 29 │ 30 │ 31 │ 32 │ 33 │ 34 │ 35 │ 36 │
+#   ├────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┤
+# 5 │ Rb │ Sr │ Y  │ Zr │ Nb │ Mo │ Tc │ Ru │ Rh │ Pd │ Ag │ Cd │ In │ Sn │ Sb │ Te │ I  │ Xe │
+#   │ 37 │ 38 │ 39 │ 40 │ 41 │ 42 │ 43 │ 44 │ 45 │ 46 │ 47 │ 48 │ 49 │ 50 │ 51 │ 52 │ 53 │ 54 │
+#   ├────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┼────┤
+# 6 │ Cs │ Ba │ L* │ Hf │ Ta │ W  │ Re │ Os │ Ir │ Pt │ Au │ Hg │ Tl │ Pb │ Bi │ Po │ At │ Rn │
+#   │ 55 │ 56 │ -- │ 72 │ 73 │ 74 │ 75 │ 76 │ 77 │ 78 │ 79 │ 80 │ 81 │ 82 │ 83 │ 84 │ 85 │ 86 │
+#   ├────┼────┼────┼────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+# 7 │ Fr │ Ra │ A* │
+#   │ 87 │ 88 │ -- │
+#   └────┴────┴────┘
+# ----------------------------------------------------------------------------------------------
+# L* (Lanthanide)
+#   ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+# 6 │ La │ Ce │ Pr │ Nd │ Pm │ Sm │ Eu │ Gd │ Tb │ Dy │ Ho │ Er │ Tm │ Yb │ Lu │
+#   │ 57 │ 58 │ 59 │ 60 │ 61 │ 62 │ 63 │ 64 │ 65 │ 66 │ 67 │ 68 │ 69 │ 70 │ 71 │
+#   └────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+# A* (Actinide)
+#   ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+# 7 │ Ac │ Th │ Pa │ U  │ Np │ Pu │ Am │ Cm │ Bk │ Cf │ Es │ Fm │ Md │ No │ Lr │
+#   │ 89 │ 90 │ 91 │ 92 │ 93 │ 94 │ 95 │ 96 │ 97 │ 98 │ 99 │ 100│ 101│ 102│ 103│
+#   └────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+
+
+# Atomic numbers 1 to 103
+CHEMICAL_SYMBOLS = [
+    "n",
+    "H", "He",
+    "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar",
+    "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
+    "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe",
+    "Cs", "Ba",
+    "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",
+    "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At","Rn",
+    "Fr", "Ra",
+    "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"
+    ] 
+
 convention_dict = {
+    'pyscf_def2-tzvp_to_e3nn': Namespace(
+        atom_to_orbitals_map={
+            1:  'sssp', # H
+            6:  'ssssspppddf', # C
+            7:  'ssssspppddf', # N
+            8:  'ssssspppddf', # O
+            9:  'ssssspppddf', # F
+            15: 'ssssspppppddf', # P
+            16: 'ssssspppppddf', # S
+            17: 'ssssspppppddf', # Cl
+        },
+        orbital_idx_map={
+            's': [0],
+            'p': [1, 2, 0],
+            'd': [0, 1, 2, 3, 4],
+            'f': [0, 1, 2, 3, 4, 5, 6],
+        },
+        orbital_sign_map={
+            's': [1],
+            'p': [1, 1, 1],
+            'd': [1, 1, 1, 1, 1],
+            'f': [1, 1, 1, 1, 1, 1, 1],
+        },
+        orbital_order_map={
+            1:  [0, 1, 2, 3],   
+            6:  list(range(11)),
+            7:  list(range(11)),
+            8:  list(range(11)),
+            9:  list(range(11)),
+            15: list(range(13)),
+            16: list(range(13)),
+            17: list(range(13)),
+        },
+        max_block_size= 37, # 5s + 5p + 2d + 1f = 5 + 15 + 10 + 7 = 37
+    ),
     "pyscf_631G_to_e3nn": Namespace(
         # 6-31G basis set convention used by PySCF
         # p orbitals: [px, py, pz] -> reordered to [pz, px, py] for compatibility
-        atom_to_orbitals_map={1: "ss", 6: "ssspp", 7: "ssspp", 8: "ssspp", 9: "ssspp"},
-        orbital_idx_map={"s": [0], "p": [2, 0, 1], "d": [0, 1, 2, 3, 4]},  # p: [pz, px, py]
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
+        atom_to_orbitals_map={
+            1: "ss",
+            6: "ssspp",
+            7: "ssspp",
+            8: "ssspp",
+            9: "ssspp",
+        },
+        orbital_idx_map={
+            "s": [0],
+            "p": [1, 2, 0],   # p: [pz, px, py]
+            "d": [0, 1, 2, 3, 4]
+            },
+        orbital_sign_map={
+            "s": [1],
+            "p": [1, 1, 1],
+            "d": [1, 1, 1, 1, 1],
+        },
         orbital_order_map={
-            1: [0, 1],      # H: 2 orbitals (s, s)
+            1: [0, 1],           # H: 2 orbitals (s, s)
             6: [0, 1, 2, 3, 4],  # C: 5 orbitals (s, s, s, p, p)
             7: [0, 1, 2, 3, 4],  # N: 5 orbitals (s, s, s, p, p)
             8: [0, 1, 2, 3, 4],  # O: 5 orbitals (s, s, s, p, p)
             9: [0, 1, 2, 3, 4],  # F: 5 orbitals (s, s, s, p, p)
         },
+        max_block_size=9, # 3s + 2p = 3 + 6 = 9
     ),
     "pyscf_def2svp_to_e3nn": Namespace(
         # def2-SVP basis set convention used by PySCF
@@ -27,8 +137,16 @@ convention_dict = {
             8: "sssppd",   # O: 6 orbitals (s, s, s, p, p, d)
             9: "sssppd",   # F: 6 orbitals (s, s, s, p, p, d)
         },
-        orbital_idx_map={"s": [0], "p": [1, 2, 0], "d": [0, 1, 2, 3, 4]},  # p: [py, pz, px]
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
+        orbital_idx_map={
+            "s": [0],
+            "p": [1, 2, 0],
+            "d": [0, 1, 2, 3, 4],
+        },  # p: [py, pz, px]
+        orbital_sign_map={
+            "s": [1],
+            "p": [1, 1, 1],
+            "d": [1, 1, 1, 1, 1],
+        },
         orbital_order_map={
             1: [0, 1, 2],      # H: 3 orbitals (s, s, p)
             6: [0, 1, 2, 3, 4, 5],  # C: 6 orbitals (s, s, s, p, p, d)
@@ -36,6 +154,42 @@ convention_dict = {
             8: [0, 1, 2, 3, 4, 5],  # O: 6 orbitals (s, s, s, p, p, d)
             9: [0, 1, 2, 3, 4, 5],  # F: 6 orbitals (s, s, s, p, p, d)
         },
+        max_block_size= 14, # 3s + 2p + 1d = 3 + 6 + 5 = 14
+    ),
+    'e3nn_to_pyscf_def2-tzvp': Namespace(
+        atom_to_orbitals_map={
+            1:  'sssp', # H
+            6:  'ssssspppddf', # C
+            7:  'ssssspppddf', # N
+            8:  'ssssspppddf', # O
+            9:  'ssssspppddf', # F
+            15: 'ssssspppppddf', # P
+            16: 'ssssspppppddf', # S
+            17: 'ssssspppppddf', # Cl
+        },
+        orbital_idx_map={
+            's': [0],
+            'p': [2, 0, 1],
+            'd': [0, 1, 2, 3, 4],
+            'f': [0, 1, 2, 3, 4, 5, 6],
+        },
+        orbital_sign_map={
+            's': [1],
+            'p': [1, 1, 1],
+            'd': [1, 1, 1, 1, 1],
+            'f': [1, 1, 1, 1, 1, 1, 1],
+        },
+        orbital_order_map={
+            1:  [0, 1, 2, 3],   
+            6:  list(range(11)),
+            7:  list(range(11)),
+            8:  list(range(11)),
+            9:  list(range(11)),
+            15: list(range(13)),
+            16: list(range(13)),
+            17: list(range(13)),
+        },
+        max_block_size= 37, # 5s + 5p + 2d + 1f = 5 + 15 + 10 + 7 = 37
     ),
     "e3nn_to_pyscf_def2svp": Namespace(
         # Special convention to convert back to PySCF's native orbital ordering
@@ -56,38 +210,94 @@ convention_dict = {
             8: "sssppd",   # O: 6 orbitals (s, s, s, p, p, d)
             9: "sssppd",   # F: 6 orbitals (s, s, s, p, p, d)
         },
-        orbital_idx_map={"s": [0], "p": [2, 0, 1], "d": [0, 1, 2, 3, 4]},  # p: [px, py, pz] (PySCF native)
-        orbital_sign_map={"s": [1], "p": [1, 1, 1], "d": [1, 1, 1, 1, 1]},
+        orbital_idx_map={
+            "s": [0],
+            "p": [2, 0, 1],
+            "d": [0, 1, 2, 3, 4],
+        },  # p: [px, py, pz] (PySCF native)
+        orbital_sign_map={
+            "s": [1],
+            "p": [1, 1, 1],
+            "d": [1, 1, 1, 1, 1],
+        },
         orbital_order_map={
-            1: [0, 1, 2],      # H: 3 orbitals (s, s, p)
+            1: [0, 1, 2],           # H: 3 orbitals (s, s, p)
             6: [0, 1, 2, 3, 4, 5],  # C: 6 orbitals (s, s, s, p, p, d)
             7: [0, 1, 2, 3, 4, 5],  # N: 6 orbitals (s, s, s, p, p, d)
             8: [0, 1, 2, 3, 4, 5],  # O: 6 orbitals (s, s, s, p, p, d)
             9: [0, 1, 2, 3, 4, 5],  # F: 6 orbitals (s, s, s, p, p, d)
         },
+        max_block_size= 14,
     ),
 }
 
-convention_dict["back2pyscf"] = convention_dict["e3nn_to_pyscf_def2svp"]
-convention_dict["pyscf_def2svp"] = convention_dict["pyscf_def2svp_to_e3nn"]
-convention_dict["pyscf_631G"] = convention_dict["pyscf_631G_to_e3nn"]
+# Alias for compatibility
+convention_dict["back2pyscf"]     = convention_dict["e3nn_to_pyscf_def2svp"]
+convention_dict["pyscf_def2svp"]  = convention_dict["pyscf_def2svp_to_e3nn"]
+convention_dict["pyscf_631G"]     = convention_dict["pyscf_631G_to_e3nn"]
+convention_dict["pyscf_def2-tzvp"] = convention_dict["pyscf_def2-tzvp_to_e3nn"]
 
 def get_convention_dict():
+    """Get the dictionary of orbital convention mappings.
+    
+    Returns:
+        dict: Dictionary containing orbital convention rules for different
+              basis sets and software packages.
+    """
     return convention_dict
 
-def _get_orbital_mask(ORBITAL_1S_2S_INDICES = None, ORBITAL_2P_INDICES = None, ORBITAL_MASK_SIZE_LINE2 = None):
-    """Get orbital masks for different atomic numbers."""
-    if ORBITAL_1S_2S_INDICES is None:
-        ORBITAL_1S_2S_INDICES = torch.tensor([0, 1])
-    if ORBITAL_2P_INDICES is None:
-        ORBITAL_2P_INDICES = torch.tensor([3, 4, 5])
-    if ORBITAL_MASK_SIZE_LINE2 is None:
-        ORBITAL_MASK_SIZE_LINE2 = 14
-    orbital_mask_line1 = torch.cat([ORBITAL_1S_2S_INDICES, ORBITAL_2P_INDICES])
-    orbital_mask_line2 = torch.arange(ORBITAL_MASK_SIZE_LINE2)
+def _get_orbital_mask(basis = "def2-svp"):
+    """Get orbital masks for different atomic numbers.
+    
+    Args:
+        ORBITAL_1S_2S_INDICES (torch.Tensor, optional): Indices for 1s and 2s orbitals.
+            Defaults to [0, 1].
+        ORBITAL_2P_INDICES (torch.Tensor, optional): Indices for 2p orbitals.
+            Defaults to [3, 4, 5].
+        ORBITAL_MASK_SIZE_LINE2 (int, optional): Size of orbital mask for line 2 elements.
+            Defaults to 14.
+    
+    Returns:
+        dict: Dictionary mapping atomic numbers to their orbital masks.
+    """
+    assert basis in ["def2-svp", "def2-tzvp"], f"Invalid basis: {basis}, only def2-svp and def2-tzvp are supported now"
     orbital_mask = {}
-    for i in range(1, 11):
-        orbital_mask[i] = orbital_mask_line1 if i <= 2 else orbital_mask_line2
+    
+    if basis == "631G":
+        pass
+
+    elif basis == "def2-svp":        
+        MAX_ORBITAL_LENGTH = 14
+        MAX_ATOMIC_NUMBER = 9
+        DEFAULT_ORBITAL_INDICES = torch.arange(MAX_ORBITAL_LENGTH)
+        orbital_mask[1] = torch.tensor([0, 1, 3, 4, 5]) # ssp
+        orbital_mask[6] = DEFAULT_ORBITAL_INDICES
+        orbital_mask[7] = DEFAULT_ORBITAL_INDICES
+        orbital_mask[8] = DEFAULT_ORBITAL_INDICES
+        orbital_mask[9] = DEFAULT_ORBITAL_INDICES
+        
+    elif basis == "def2-tzvp":
+        MAX_ORBITAL_LENGTH = 37
+        MAX_ATOMIC_NUMBER = 17
+        DEFAULT_ORBITAL_INDICES_1 = torch.tensor([
+            0, 1, 2, 3, 4,      # 1s-5s
+            5, 6, 7,            # 2p
+            8, 9, 10,           # 3p
+            11, 12, 13,         # 4p (skip 5p,6p)
+            20, 21, 22, 23, 24, # 3d
+            25, 26, 27, 28, 29, # 4d
+            30, 31, 32, 33, 34, 35, 36 # 4f
+        ])
+        DEFAULT_ORBITAL_INDICES_2 = torch.arange(MAX_ORBITAL_LENGTH)
+        orbital_mask[1] = torch.tensor([0, 1, 2, 5, 6, 7]) # sssp
+        orbital_mask[6] = DEFAULT_ORBITAL_INDICES_1
+        orbital_mask[7] = DEFAULT_ORBITAL_INDICES_1
+        orbital_mask[8] = DEFAULT_ORBITAL_INDICES_1
+        orbital_mask[9] = DEFAULT_ORBITAL_INDICES_1
+        orbital_mask[15] = DEFAULT_ORBITAL_INDICES_2
+        orbital_mask[16] = DEFAULT_ORBITAL_INDICES_2
+        orbital_mask[17] = DEFAULT_ORBITAL_INDICES_2
+
     return orbital_mask
 
 def _build_final_matrix(
@@ -96,7 +306,17 @@ def _build_final_matrix(
     non_diagonal_matrix,
     orbital_mask,
 ):
-    """Build final matrix from diagonal and non-diagonal blocks."""
+    """Build final matrix from diagonal and non-diagonal blocks.
+    
+    Args:
+        data: PyG Data object containing graph information.
+        diagonal_matrix: Diagonal matrix blocks.
+        non_diagonal_matrix: Non-diagonal matrix blocks.
+        orbital_mask: Dictionary mapping atomic numbers to orbital indices.
+    
+    Returns:
+        list: List of final matrices, one per graph in the batch.
+    """
     final_matrix = []
     if hasattr(data, "full_edge_index"):
         dst, src = data.full_edge_index
@@ -138,7 +358,26 @@ def _build_final_matrix(
 
 
 def _matrix_transform_list(hamiltonian_list, data, convention_rule):
-    """Transform matrix between different orbital conventions - CUDA optimized version."""    
+    """Transform matrix between different orbital conventions - CUDA optimized version.
+    
+    This function transforms a list of Hamiltonian matrices between different orbital conventions,
+    optimized for CUDA execution. It handles the transformation for each graph in a batch separately.
+    
+    Args:
+        hamiltonian_list (list): List of Hamiltonian matrices to transform, one per graph.
+        data: PyG Data object containing graph information like atoms and batch indices.
+        convention_rule (Namespace): Orbital convention to use:
+            - 'pyscf_def2-tzvp': def2-TZVP basis set convention (p: [pz, px, py])
+            - 'pyscf_631G': 6-31G basis set convention (p: [pz, px, py])
+            - 'pyscf_def2svp': def2-SVP basis set convention (p: [py, pz, px])
+            - 'back2pyscf': Convert back to PySCF native convention (p: [pz, px, py])
+              * Use this when you have matrices from other software and need to
+                convert them back to PySCF format for density matrix calculations
+              * Same basis as def2-SVP but with PySCF's native p-orbital ordering
+    
+    Returns:
+        list: List of transformed Hamiltonian matrices, one per graph in the batch.
+    """
     final_matrix_list = []
     
     for graph_idx in range(data.ptr.shape[0] - 1):
@@ -150,8 +389,7 @@ def _matrix_transform_list(hamiltonian_list, data, convention_rule):
     return final_matrix_list
 
 def _matrix_transform_single(hamiltonian, atoms, convention_rule):
-    """
-    Transform matrices according to orbital convention using NumPy.
+    """Transform matrices according to orbital convention using PyTorch.
     
     This function reorders and applies sign changes to orbital matrices based on
     different quantum chemistry software conventions. Different software packages
@@ -164,9 +402,10 @@ def _matrix_transform_single(hamiltonian, atoms, convention_rule):
         - This function handles the reordering and sign changes
     
     Args:
-        matrices: Input matrices to transform, shape (..., n_orb, n_orb)
-        atoms: Atomic numbers for the molecule (e.g., [6, 1, 1, 1] for CH3)
-        convention: Orbital convention to use:
+        hamiltonian (torch.Tensor): Input matrices to transform, shape (..., n_orb, n_orb).
+        atoms (torch.Tensor): Atomic numbers for the molecule (e.g., [6, 1, 1, 1] for CH3).
+        convention_rule (Namespace): Orbital convention to use:
+            - 'pyscf_def2-tzvp': def2-TZVP basis set convention (p: [pz, px, py])
             - 'pyscf_631G': 6-31G basis set convention (p: [pz, px, py])
             - 'pyscf_def2svp': def2-SVP basis set convention (p: [py, pz, px])
             - 'back2pyscf': Convert back to PySCF native convention (p: [pz, px, py])
@@ -175,7 +414,7 @@ def _matrix_transform_single(hamiltonian, atoms, convention_rule):
               * Same basis as def2-SVP but with PySCF's native p-orbital ordering
     
     Returns:
-        Transformed matrices with reordered orbitals and applied sign changes
+        torch.Tensor: Transformed matrices with reordered orbitals and applied sign changes.
     """
     conv = convention_rule
     
@@ -219,30 +458,28 @@ def _matrix_transform_single(hamiltonian, atoms, convention_rule):
     return hamiltonian_new
 
 def matrix_transform_single(hamiltonian, atoms, convention="pyscf_def2svp"):
-    """
-    Transform matrix between different orbital conventions - CUDA optimized version.
+    """Transform matrix between different orbital conventions - CUDA optimized version.
     
     This function reorders and transforms the hamiltonian matrix according to the
     specified orbital convention, handling different basis set orderings.
     
     Args:
-        hamiltonian (torch.Tensor): Hamiltonian matrix to transform
-        atoms (torch.Tensor): Atomic numbers tensor
-        convention (str): Orbital convention to use (default: "pyscf_def2svp")
+        hamiltonian (torch.Tensor): Hamiltonian matrix to transform.
+        atoms (torch.Tensor): Atomic numbers tensor.
+        convention (str): Orbital convention to use (default: "pyscf_def2svp").
         
     Returns:
-        torch.Tensor: Transformed hamiltonian matrix
+        torch.Tensor: Transformed hamiltonian matrix.
         
     Raises:
-        AssertionError: If convention is not in CONVENTION_DICT
+        AssertionError: If convention is not in CONVENTION_DICT.
     """
     assert convention in get_convention_dict(), f"Invalid convention: {convention}"
     conv = get_convention_dict()[convention]
     return _matrix_transform_single(hamiltonian, atoms, conv)
 
 def cut_matrix(matrix, atoms, orbital_mask, full_orbitals, last_dim=False):
-    """
-    Cut matrix into atomic blocks with optimized performance.
+    """Cut matrix into atomic blocks with optimized performance.
     
     This function takes a molecular orbital matrix and splits it into atomic blocks.
     Each block represents interactions between specific atoms. The matrix is divided
@@ -272,16 +509,17 @@ def cut_matrix(matrix, atoms, orbital_mask, full_orbitals, last_dim=False):
         - Non-diagonal blocks: C-H, H-C, H-H (different atoms) interactions
     
     Args:
-        matrix: Input matrix tensor of shape (n_orb, n_orb) or (n_orb, n_orb, n_features)
-               - 2D: Single property matrix (e.g., Hamiltonian, overlap)
-               - 3D: Multiple property matrices stacked along last dimension
-        atoms: Atomic numbers tensor (e.g., [6, 1, 1, 1] for CH3)
-        orbital_mask: Dictionary mapping atomic numbers to orbital indices
-                     e.g., {6: [0,1,2,3,4], 1: [0,1]} for C(5 orbitals) and H(2 orbitals)
-        full_orbitals: Maximum number of orbitals per atom (used for padding)
+        matrix (torch.Tensor): Input matrix tensor of shape (n_orb, n_orb) or (n_orb, n_orb, n_features).
+            - 2D: Single property matrix (e.g., Hamiltonian, overlap)
+            - 3D: Multiple property matrices stacked along last dimension
+        atoms (torch.Tensor): Atomic numbers tensor (e.g., [6, 1, 1, 1] for CH3).
+        orbital_mask (dict): Dictionary mapping atomic numbers to orbital indices.
+            e.g., {6: [0,1,2,3,4], 1: [0,1]} for C(5 orbitals) and H(2 orbitals).
+        full_orbitals (int): Maximum number of orbitals per atom (used for padding).
+        last_dim (bool): If True, features are stacked along the last dimension.
         
     Returns:
-        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index)
+        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index).
             - diagonal_blocks: Blocks for same-atom interactions
             - non_diagonal_blocks: Blocks for different-atom interactions  
             - diagonal_masks: Binary masks indicating valid orbital positions in diagonal blocks
@@ -299,11 +537,19 @@ def cut_matrix(matrix, atoms, orbital_mask, full_orbitals, last_dim=False):
             return _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals)
 
 def _cut_matrix_2d(matrix, atoms, orbital_mask, full_orbitals):
-    """
-    Optimized 2D matrix cutting - no runtime checks for maximum performance.
+    """Optimized 2D matrix cutting - no runtime checks for maximum performance.
     
     This function processes 2D matrices (single property like Hamiltonian or overlap matrix).
     It's separated from 3D case to avoid conditional checks in the hot loop.
+    
+    Args:
+        matrix (torch.Tensor): 2D input matrix tensor.
+        atoms (torch.Tensor): Atomic numbers tensor.
+        orbital_mask (dict): Dictionary mapping atomic numbers to orbital indices.
+        full_orbitals (int): Maximum number of orbitals per atom.
+    
+    Returns:
+        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index).
     """
     # Get tensor properties once to avoid repeated access
     device = matrix.device
@@ -385,12 +631,20 @@ def _cut_matrix_2d(matrix, atoms, orbital_mask, full_orbitals):
     )
 
 def _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals):
-    """
-    Optimized 3D matrix cutting - no runtime checks for maximum performance.
+    """Optimized 3D matrix cutting - no runtime checks for maximum performance.
     
     This function processes 3D matrices where multiple properties are stacked
     along the first dimension (e.g., [Hamiltonian, overlap, kinetic_energy]).
     The algorithm is identical to 2D case but handles the extra dimension.
+    
+    Args:
+        matrix (torch.Tensor): 3D input matrix tensor with features along first dimension.
+        atoms (torch.Tensor): Atomic numbers tensor.
+        orbital_mask (dict): Dictionary mapping atomic numbers to orbital indices.
+        full_orbitals (int): Maximum number of orbitals per atom.
+    
+    Returns:
+        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index).
     """
     # Get tensor properties once to avoid repeated access
     device = matrix.device
@@ -475,12 +729,20 @@ def _cut_matrix_3d(matrix, atoms, orbital_mask, full_orbitals):
     )
 
 def _cut_matrix_3d_last(matrix, atoms, orbital_mask, full_orbitals):
-    """
-    Optimized 3D matrix cutting - no runtime checks for maximum performance.
+    """Optimized 3D matrix cutting - no runtime checks for maximum performance.
     
     This function processes 3D matrices where multiple properties are stacked
     along the last dimension (e.g., [Hamiltonian, overlap, kinetic_energy]).
     The algorithm is identical to 2D case but handles the extra dimension.
+    
+    Args:
+        matrix (torch.Tensor): 3D input matrix tensor with features along last dimension.
+        atoms (torch.Tensor): Atomic numbers tensor.
+        orbital_mask (dict): Dictionary mapping atomic numbers to orbital indices.
+        full_orbitals (int): Maximum number of orbitals per atom.
+    
+    Returns:
+        tuple: (diagonal_blocks, non_diagonal_blocks, diagonal_masks, non_diagonal_masks, edge_index).
     """
     # Get tensor properties once to avoid repeated access
     device = matrix.device
@@ -566,12 +828,33 @@ def _cut_matrix_3d_last(matrix, atoms, orbital_mask, full_orbitals):
 
 
 def pack_upper_triangle(M: np.ndarray):
+    """Pack upper triangle of a symmetric matrix into a 1D array.
+    
+    Args:
+        M (np.ndarray): 2D symmetric matrix to pack.
+    
+    Returns:
+        tuple: (packed_array, matrix_size) where packed_array contains the upper
+               triangle elements and matrix_size is the original matrix dimension.
+    
+    Raises:
+        AssertionError: If matrix is not 2D or not square.
+    """
     assert M.ndim == 2 and M.shape[0] == M.shape[1]
     n = M.shape[0]
     idx = np.triu_indices(n)
     return M[idx].astype(np.float64), n
 
 def unpack_upper_triangle(packed: np.ndarray, n: int):
+    """Unpack upper triangle array back into a symmetric matrix.
+    
+    Args:
+        packed (np.ndarray): 1D array containing upper triangle elements.
+        n (int): Size of the original square matrix.
+    
+    Returns:
+        np.ndarray: Reconstructed symmetric matrix.
+    """
     M = np.zeros((n,n), dtype=packed.dtype)
     iu = np.triu_indices(n)
     M[iu] = packed

@@ -1,3 +1,6 @@
+"""
+Custom logger for QHFlow.
+"""
 import sys
 import logging
 import logging.handlers

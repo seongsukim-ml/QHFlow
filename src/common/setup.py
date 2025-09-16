@@ -26,9 +26,10 @@ MODE_DICT = {
     "pred": "predict",
 }
 
+# Ex: /mnt/QHFlow
+DEFAULT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 # Ex: /mnt/QHFlow/src
-DEFAULT_SRC_PATH  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-DEFAULT_DATASET_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
+DEFAULT_SRC_PATH  = os.path.join(DEFAULT_ROOT_PATH, "src")
 
 def setup_paths(src_path: str=None):
     """Setup Python path and get src directory."""
@@ -68,7 +69,7 @@ def setup_tensor_type_and_seed(conf: DictConfig):
 
 def get_dataset_path(conf: DictConfig=None):
     """Get the root path for dataset loading."""
-    data_path = DEFAULT_DATASET_PATH if conf is None else conf.get("dataset_path", DEFAULT_DATASET_PATH)
+    data_path = DEFAULT_ROOT_PATH if conf is None else conf.get("dataset_path", DEFAULT_DATASET_PATH)
     logger.info(f"Dataset path: {data_path}")
     if not os.path.exists(data_path):
         logger.error(f"Dataset path {data_path} does not exist")
@@ -76,19 +77,12 @@ def get_dataset_path(conf: DictConfig=None):
     return data_path
 
 
-""" Deprecated """
+""" Deprecated / Used in old code """
 def get_root_path(conf: DictConfig=None):
     return get_dataset_path(conf)
+
 
 def get_mode(conf: DictConfig):
     """Get the current mode from configuration."""
     mode = conf.get("mode", "train")
     return MODE_DICT.get(mode, mode)
-
-
-def setup_logging():
-    """Setup basic logging configuration."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )

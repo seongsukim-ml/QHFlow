@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Common fine-tuning utilities for experiments.
 """

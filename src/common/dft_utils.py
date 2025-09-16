@@ -1,3 +1,9 @@
+"""
+DFT Utilities Module
+
+This module provides utility functions for Density Functional Theory (DFT) calculations,
+including matrix transformations, PySCF integration, and data processing utilities.
+"""
 from pyscf import gto, scf, dft
 from common.metric import cal_orbital_and_energies
 from common.matrix_transforms import get_convention_dict, matrix_transform_single
