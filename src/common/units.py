@@ -47,6 +47,8 @@ HA_BOHR_2_KCALPM_ANG = HA2KCALPM / BOHR2ANG        # Hartree/Bohr to kcal/mol/An
 KCALPM_ANG_2_HA_BOHR = 1.0 / HA_BOHR_2_KCALPM_ANG  # kcal/mol/Angstrom to Hartree/Bohr
 HA_BOHR_2_meV_ANG    = HA2meV / BOHR2ANG           # Hartree/Bohr to meV/Angstrom
 meV_ANG_2_HA_BOHR    = 1.0 / HA_BOHR_2_meV_ANG     # meV/Angstrom to Hartree/Bohr
+HA_BOHR_2_HA_ANG     = 1.0 / BOHR2ANG              # Hartree/Bohr to Hartree/Angstrom
+HA_ANG_2_HA_BOHR     = 1.0 / ANG2BOHR              # Hartree/Angstrom to Hartree/Bohr
 
 def print_unit_conversion():
     print(f"Length unit: {Angstrom} Angstrom")

@@ -139,7 +139,10 @@ class QH9Stable_shard(LMDBShard_maker_db):
         hamiltonian = np.frombuffer(data[4], np.float64) # flattened hamiltonian matrix
         h_dim = ovlp.shape[0]
         hamiltonian = hamiltonian.reshape(h_dim, h_dim)
-        orbital_energies, orbital_coefficients = cal_orbital_and_energies(torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64), torch.from_numpy(init_ham).unsqueeze(0).to(torch.float64))
+        orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+            torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64), 
+            torch.from_numpy(hamiltonian).unsqueeze(0).to(torch.float64)
+            )
         orbital_coefficients = orbital_coefficients.squeeze()
         dm0 = calc_dm0(atoms, orbital_coefficients)
         
@@ -692,7 +695,10 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
         hamiltonian = np.frombuffer(data[9], np.float64) # flattened hamiltonian matrix
         h_dim = ovlp.shape[0]
         hamiltonian = hamiltonian.reshape(h_dim, h_dim)
-        orbital_energies, orbital_coefficients = cal_orbital_and_energies(torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64), torch.from_numpy(init_ham).unsqueeze(0).to(torch.float64))
+        orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+            torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64),
+            torch.from_numpy(hamiltonian).unsqueeze(0).to(torch.float64),
+        )
         orbital_coefficients = orbital_coefficients.squeeze()
         dm0 = calc_dm0(atoms, orbital_coefficients)
         

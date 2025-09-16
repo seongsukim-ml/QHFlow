@@ -120,18 +120,20 @@ class MD17_shard(LMDBShard_maker_db):
         # data_overlap = data_dict["overlap"]
 
         ovlp, init_ham, mf = calc_overlap_and_init_hamiltonian(atoms, pos.reshape(-1, 3), out_mf=True)
-        mf.kernel()
+        dft_energy = mf.kernel()
         hamiltonian = mf.get_fock(dm=mf.make_rdm1())
         # hamiltonian = np.frombuffer(data[4], np.float64) # flattened hamiltonian matrix
         h_dim = ovlp.shape[0]
         hamiltonian = hamiltonian.reshape(h_dim, h_dim)
-        orbital_energies, orbital_coefficients = cal_orbital_and_energies(torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64), torch.from_numpy(init_ham).unsqueeze(0).to(torch.float64))
+        orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+            torch.from_numpy(ovlp).unsqueeze(0).to(torch.float64),
+            torch.from_numpy(hamiltonian).unsqueeze(0).to(torch.float64),
+        )
         orbital_coefficients = orbital_coefficients.squeeze()
         dm0 = calc_dm0(atoms, orbital_coefficients)
-        
+
         orbital_coefficients = orbital_coefficients.cpu().numpy()
         orbital_energies = orbital_energies.cpu().numpy()
-        dft_energy = mf.energy_tot(dm0)
 
         # Calculate DFT forces
         grad_frame = mf.nuc_grad_method()
@@ -150,8 +152,8 @@ class MD17_shard(LMDBShard_maker_db):
             "num_nodes": pos.shape[0],
             "atoms": atoms.tobytes(),
             "pos": pos.tobytes(),  # unit: angstrom
-            "energy": energy.item(),
-            "force": force.tobytes(),
+            "energy": energy.item(), # unit: Eh
+            "force": force.tobytes(), # unit: Eh/Bohr
             "dft_energy": dft_energy, # unit: Eh
             "dft_forces": dft_forces.tobytes(), # unit: Eh/Bohr
             "h_dim": h_dim,
@@ -415,8 +417,8 @@ class MD17_DFT_Shard(InMemoryDataset):
         return unpack_upper_triangle(packed, h_dim)
     
     
-    def __getitem__(self, idx):
-        return self.get(idx)
+    # def __getitem__(self, idx):
+    #     return self.get(idx)
     
     def get(self, idx):
         """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
@@ -456,19 +458,18 @@ class MD17_DFT_Shard(InMemoryDataset):
         atoms = torch.tensor(np.frombuffer(data_dict["atoms"], np.int32), dtype=torch.int64)
         pos = torch.tensor(np.frombuffer(data_dict["pos"], np.float64).reshape(-1, 3), dtype=torch.float64)
         energy = torch.tensor(data_dict["energy"], dtype=torch.float64)
-        force = torch.tensor(np.frombuffer(data_dict["force"], np.float64).reshape(-1, 3), dtype=torch.float64)
+        force = torch.tensor(np.frombuffer(data_dict["force"], np.float32).reshape(-1, 3), dtype=torch.float64) # unit: meV/Angstrom
         dft_energy = torch.tensor(data_dict["dft_energy"], dtype=torch.float64)
-        dft_forces = torch.tensor(np.frombuffer(data_dict["dft_forces"], np.float64).reshape(-1, 3), dtype=torch.float64)
+        dft_forces = torch.tensor(np.frombuffer(data_dict["dft_forces"], np.float64).reshape(-1, 3), dtype=torch.float64) # unit: Eh/Bohr
         h_dim = data_dict["h_dim"] # sum of orbital dimensions
-        
         packed_hamiltonian = np.frombuffer(data_dict["packed_hamiltonian"], np.float64)
-        # packed_data_hamiltonian = np.frombuffer(data_dict["packed_data_hamiltonian"], np.float64)
+        packed_data_hamiltonian = np.frombuffer(data_dict["packed_data_hamiltonian"], np.float64)
         packed_ovlp = np.frombuffer(data_dict["packed_overlap"], np.float64)
         packed_init_ham = np.frombuffer(data_dict["packed_initial_hamiltonian"], np.float64)
         # packed_dm0 = np.frombuffer(data_dict["packed_dm0"], np.float64)
         
         hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_hamiltonian, h_dim)).to(torch.float64)
-        # data_hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_data_hamiltonian, h_dim)).to(torch.float64)
+        data_hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_data_hamiltonian, h_dim)).to(torch.float64)
         overlap_matrix = torch.from_numpy(self.unpack_upper_triangle(packed_ovlp, h_dim)).to(torch.float64)
         initial_hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_init_ham, h_dim)).to(torch.float64)
         # dm0 = torch.from_numpy(self.unpack_upper_triangle(packed_dm0, h_dim)).to(torch.float64)
@@ -476,9 +477,9 @@ class MD17_DFT_Shard(InMemoryDataset):
         convention = "pyscf_def2svp_to_e3nn"
         # stack in 0th dimension
         
-        hamiltonian = self.matrix_transform(hamiltonian, atoms, convention=convention)
-        overlap_matrix = self.matrix_transform(overlap_matrix, atoms, convention=convention)
-        initial_hamiltonian = self.matrix_transform(initial_hamiltonian, atoms, convention=convention)
+        # hamiltonian = self.matrix_transform(hamiltonian, atoms, convention=convention)
+        # overlap_matrix = self.matrix_transform(overlap_matrix, atoms, convention=convention)
+        # initial_hamiltonian = self.matrix_transform(initial_hamiltonian, atoms, convention=convention)
         
         AO_index = build_AO_index(build_molecule(atoms, pos), "def2-svp")
         AO_l_index = self.construct_orbital_l_index(AO_index[1])
@@ -491,6 +492,7 @@ class MD17_DFT_Shard(InMemoryDataset):
             energy=energy.view(1, 1),
             force=force,
             hamiltonian=hamiltonian.reshape(1, h_dim, h_dim),
+            data_hamiltonian=data_hamiltonian.reshape(1, h_dim, h_dim),
             overlap=overlap_matrix.reshape(1, h_dim, h_dim),
             init_ham=initial_hamiltonian.reshape(1, h_dim, h_dim),
             AO_index=AO_index,
