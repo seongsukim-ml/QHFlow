@@ -430,7 +430,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--root",
         type=str,
-        default="/home/seongsukim/dft/DEQHNet/src/QHNet_flow/dataset",
+        default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dataset"),
     )
     parser.add_argument("--name", type=str, default="water")
     parser.add_argument("--pdb", action="store_true")

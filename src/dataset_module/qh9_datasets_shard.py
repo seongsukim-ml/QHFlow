@@ -1139,6 +1139,12 @@ if __name__ == "__main__":
     os.environ["MKL_NUM_THREADS"] = "4"
     os.environ["NUMEXPR_NUM_THREADS"] = "4"
     os.environ["OPENBLAS_NUM_THREADS"] = "4"
+
+    logger.info(f"OMP_NUM_THREADS: {os.environ['OMP_NUM_THREADS']}")
+    logger.info(f"MKL_NUM_THREADS: {os.environ['MKL_NUM_THREADS']}")
+    logger.info(f"NUMEXPR_NUM_THREADS: {os.environ['NUMEXPR_NUM_THREADS']}")
+    logger.info(f"OPENBLAS_NUM_THREADS: {os.environ['OPENBLAS_NUM_THREADS']}")
+
     logger.info(f"dataset path: {args.root}")
 
     logger.info(f"Processing {args.name} dataset with shard_idx: {args.shard_idx}")

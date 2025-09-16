@@ -205,7 +205,7 @@ class LMDBShard_maker:
         packed, n = LMDBShard_maker.pack_upper_triangle(M)
         assert packed.shape == (n * (n + 1) // 2,), f"Packed shape {packed.shape} is not equal to {n * (n + 1) // 2}"
         assert LMDBShard_maker.unpack_upper_triangle(packed, n).shape == M.shape, f"Unpacked shape {LMDBShard_maker.unpack_upper_triangle(packed, n).shape} is not equal to {M.shape}"
-        print(f"Pack and unpack test passed max diff is {np.abs(LMDBShard_maker.unpack_upper_triangle(packed, n) - M).max()}")
+        logger.info(f"Pack and unpack test passed max diff is {np.abs(LMDBShard_maker.unpack_upper_triangle(packed, n) - M).max()}")
 
 class LMDBShard_maker_npz(LMDBShard_maker):
     # MD17 revised dataset
@@ -416,18 +416,18 @@ class LMDBShard_maker_db(LMDBShard_maker):
             columns = cursor.execute(f"PRAGMA table_info({table_name});").fetchall()
             
             table_info = f"Table: {table_name}"
-            print(table_info)
+            logger.info(table_info)
             info_lines.append(table_info)
             
             for column in columns:
                 col_id, col_name, col_type, not_null, default_val, pk = column
                 column_info = f"  Column {col_id}: {col_name} ({col_type}) {'NOT NULL' if not_null else 'NULL'} {'PRIMARY KEY' if pk else ''}"
-                print(column_info)
+                logger.info(column_info)
                 info_lines.append(column_info)
             
             row_count = cursor.execute(f'SELECT COUNT(*) FROM {table_name};').fetchone()[0]
             row_info = f"  Total rows: {row_count}"
-            print(row_info)
+            logger.info(row_info)
             info_lines.append(row_info)
             info_lines.append("")  # Add empty line between tables
         
