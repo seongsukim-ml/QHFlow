@@ -15,6 +15,7 @@ data_dir/*
 dataset/*
 !dataset/README.md
 !dataset/water
+!dataset/water_shard
 
 outputs/
 checkpoints/

@@ -232,10 +232,13 @@ convention_dict = {
 }
 
 # Alias for compatibility
-convention_dict["back2pyscf"]     = convention_dict["e3nn_to_pyscf_def2svp"]
-convention_dict["pyscf_def2svp"]  = convention_dict["pyscf_def2svp_to_e3nn"]
-convention_dict["pyscf_631G"]     = convention_dict["pyscf_631G_to_e3nn"]
+convention_dict["back2pyscf"]      = convention_dict["e3nn_to_pyscf_def2svp"]
+convention_dict["pyscf_def2svp"]   = convention_dict["pyscf_def2svp_to_e3nn"]
+convention_dict["pyscf_631G"]      = convention_dict["pyscf_631G_to_e3nn"]
 convention_dict["pyscf_def2-tzvp"] = convention_dict["pyscf_def2-tzvp_to_e3nn"]
+
+# For MD17 dataset. Original MD17 dataset is from ORCA. (Following the convention of QHNet)
+convention_dict["orca_to_e3nn"]    = convention_dict["e3nn_to_pyscf_def2svp"]
 
 def get_convention_dict():
     """Get the dictionary of orbital convention mappings.

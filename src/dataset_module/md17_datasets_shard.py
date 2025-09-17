@@ -58,7 +58,7 @@ class MD17_shard(LMDBShard_maker_db):
         self.split = split
         assert self.split in ["random", None], f"Split {self.split} for MD17 is not supported"
         if self.split == "random":
-            self.split_path = os.path.join(self.save_path, "random.json")
+            self.split_path = os.path.join(self.save_path, "random_split.json")
         elif self.split is None:
             self.split_path = None
         # if cal_orbital_and_energies is True, data will contain orbital energies and coefficients
@@ -181,11 +181,13 @@ class MD17_DFT_Shard(InMemoryDataset):
         pre_transform=None,
         pre_filter=None,
         prefix="",
-        shard_num=30,
+        shard_num=-1,
         shard_idx=-1,
         max_workers_preprocess=8,
         use_parallel_preprocess=False,
         split="random",
+        use_in_memory=True,
+        all_features=False,
     ):
         self.name = name
         self.folder = os.path.join(root, self.name + prefix)
@@ -194,11 +196,22 @@ class MD17_DFT_Shard(InMemoryDataset):
         self._processed_path = os.path.join(self.folder, self.processd_dir_name)
 
         self.shard_num = shard_num
+        if self.shard_num == -1:
+            if self.name == "water":
+                self.shard_num = 2
+            elif self.name == "ethanol":
+                self.shard_num = 8
+            elif self.name == "malondialdehyde":
+                self.shard_num = 8
+            elif self.name == "uracil":
+                self.shard_num = 16
+
         self.shard_idx = shard_idx
         self.max_workers_preprocess = max_workers_preprocess
         self.use_parallel_preprocess = use_parallel_preprocess
         self.split = split
-        
+        self.all_features = all_features
+                
         self.lmdb_path_list = [os.path.join(self._processed_path,self.shard_dir_name, f"shard_{i:03d}.lmdb") for i in range(self.shard_num)]
         
         self.full_orbitals = 14
@@ -249,11 +262,27 @@ class MD17_DFT_Shard(InMemoryDataset):
         self._db_envs = {}  # Cache for LMDB environments by shard index
         self.shard_idx_list = [] # Mapping from data index to shard index
 
-        super().__init__(self.folder, transform, pre_transform, pre_filter)
+        super(MD17_DFT_Shard, self).__init__(self.folder, transform, pre_transform, pre_filter)
         
         self._load_index_info()
         
-        
+        self.use_in_memory = use_in_memory
+
+        # Faster loading in memory but need more memory
+        if self.use_in_memory:
+            data_list = []
+            for idx in range(len(self.shard_idx_list)):
+                data_list.append(self._get(idx))
+            self.data, self.slices = self.collate(data_list)
+            del data_list
+        else:
+        # Used when memory is not enough
+            self.slices = { 
+                "id": torch.arange(len(self.shard_idx_list) + 1)
+            }
+            self.get = self._get
+
+            
     def _load_index_info(self):
         with open(os.path.join(self._processed_path, "index.json"), "r") as f:
             self.index_info = json.load(f)
@@ -420,7 +449,7 @@ class MD17_DFT_Shard(InMemoryDataset):
     # def __getitem__(self, idx):
     #     return self.get(idx)
     
-    def get(self, idx):
+    def _get(self, idx):
         """Optimized data loading: Reuse LMDB connection and minimize unnecessary operations."""
         try:
             return self._get(idx)
@@ -475,24 +504,31 @@ class MD17_DFT_Shard(InMemoryDataset):
         # dm0 = torch.from_numpy(self.unpack_upper_triangle(packed_dm0, h_dim)).to(torch.float64)
         
         convention = "pyscf_def2svp_to_e3nn"
-        # stack in 0th dimension
         
-        # hamiltonian = self.matrix_transform(hamiltonian, atoms, convention=convention)
-        # overlap_matrix = self.matrix_transform(overlap_matrix, atoms, convention=convention)
-        # initial_hamiltonian = self.matrix_transform(initial_hamiltonian, atoms, convention=convention)
+        hamiltonian = self.matrix_transform(hamiltonian, atoms, convention=convention)
+        overlap_matrix = self.matrix_transform(overlap_matrix, atoms, convention=convention)
+        initial_hamiltonian = self.matrix_transform(initial_hamiltonian, atoms, convention=convention)
         
         AO_index = build_AO_index(build_molecule(atoms, pos), "def2-svp")
         AO_l_index = self.construct_orbital_l_index(AO_index[1])
         
-        return AOData(
+        edge_index = []
+        for i in range(len(atoms)):
+            for j in range(len(atoms)):
+                if i != j:
+                    edge_index.append([i, j])
+        edge_index = torch.tensor(edge_index, dtype=torch.int64).t().contiguous()
+        full_edge_index = edge_index
+        
+        ret_data = AOData(
             pos=pos,
             atoms=atoms.view(-1, 1),
             dft_energy=dft_energy.view(1, 1),
             dft_forces=dft_forces,
-            energy=energy.view(1, 1),
-            force=force,
+            # energy=energy.view(1, 1),
+            # force=force,
             hamiltonian=hamiltonian.reshape(1, h_dim, h_dim),
-            data_hamiltonian=data_hamiltonian.reshape(1, h_dim, h_dim),
+            # data_hamiltonian=data_hamiltonian.reshape(1, h_dim, h_dim),
             overlap=overlap_matrix.reshape(1, h_dim, h_dim),
             init_ham=initial_hamiltonian.reshape(1, h_dim, h_dim),
             AO_index=AO_index,
@@ -501,8 +537,16 @@ class MD17_DFT_Shard(InMemoryDataset):
             num_atoms=num_nodes.view(1, 1),
             Q=self.Q,
             h_dim=torch.tensor(h_dim, dtype=torch.int64).view(1, 1),
+            full_edge_index=full_edge_index,
         )
 
+        # For GPU memory efficiency, we only use the necessary features
+        if self.all_features:
+            ret_data.energy = energy.view(1, 1)
+            ret_data.force = force
+            data_hamiltonian = self.matrix_transform(data_hamiltonian, atoms, convention="orca_to_e3nn")
+            ret_data.data_hamiltonian = data_hamiltonian.reshape(1, h_dim, h_dim)
+        return ret_data
 
 def parse_shard_idx(shard_idx_str):
     """Parse shard_idx string into a list of integers"""
@@ -532,7 +576,7 @@ if __name__ == "__main__":
     parser.add_argument("--name", type=str, default="water")
     parser.add_argument("--pdb", action="store_true")
     parser.add_argument("--shard_idx", type=str, default="-1")
-    parser.add_argument("--shard_num", type=int, default=10)
+    parser.add_argument("--shard_num", type=int, default=-1)
     parser.add_argument("--split", type=str, default=None)
     parser.add_argument("--prefix", type=str, default="_shard")
 

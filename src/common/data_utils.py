@@ -7,15 +7,26 @@ from common.custom_logger import get_logger
 from torch_geometric.loader import DataLoader
 from omegaconf import DictConfig
 from dataset_module.ori_dataset import MD17_DFT, random_split, get_mask
+from dataset_module.md17_datasets_shard import MD17_DFT_Shard
 
 logger = get_logger(__file__)
 
 def load_md17_dataset(conf: DictConfig, root_path: str):
-    return MD17_DFT(
-        os.path.join(root_path, "dataset"),
-        name=conf.dataset.dataset_name,
-        transform=get_mask,
-    )
+    if conf.dataset.get("use_shard", False):
+        return MD17_DFT_Shard(
+            os.path.join(root_path, "dataset"),
+            prefix="_shard",
+            name=conf.dataset.dataset_name,
+            all_features=conf.dataset.get("all_features", False),
+            use_in_memory=conf.dataset.get("use_in_memory", False),
+            # transform=get_mask, # Not used
+        )
+    else:
+        return MD17_DFT(
+            os.path.join(root_path, "dataset"),
+            name=conf.dataset.dataset_name,
+            transform=get_mask,
+        )
 
 def create_md17_data_loaders(dataset, conf: DictConfig, batch_size=[None, None, None]):
     """Create train, validation, and test data loaders."""

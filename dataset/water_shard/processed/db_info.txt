@@ -1,0 +1,68 @@
+Table: systems
+  Column 0: id (INTEGER) NULL PRIMARY KEY
+  Column 1: unique_id (TEXT) NULL 
+  Column 2: ctime (REAL) NULL 
+  Column 3: mtime (REAL) NULL 
+  Column 4: username (TEXT) NULL 
+  Column 5: numbers (BLOB) NULL 
+  Column 6: positions (BLOB) NULL 
+  Column 7: cell (BLOB) NULL 
+  Column 8: pbc (INTEGER) NULL 
+  Column 9: initial_magmoms (BLOB) NULL 
+  Column 10: initial_charges (BLOB) NULL 
+  Column 11: masses (BLOB) NULL 
+  Column 12: tags (BLOB) NULL 
+  Column 13: momenta (BLOB) NULL 
+  Column 14: constraints (TEXT) NULL 
+  Column 15: calculator (TEXT) NULL 
+  Column 16: calculator_parameters (TEXT) NULL 
+  Column 17: energy (REAL) NULL 
+  Column 18: free_energy (REAL) NULL 
+  Column 19: forces (BLOB) NULL 
+  Column 20: stress (BLOB) NULL 
+  Column 21: dipole (BLOB) NULL 
+  Column 22: magmoms (BLOB) NULL 
+  Column 23: magmom (REAL) NULL 
+  Column 24: charges (BLOB) NULL 
+  Column 25: key_value_pairs (TEXT) NULL 
+  Column 26: data (BLOB) NULL 
+  Column 27: natoms (INTEGER) NULL 
+  Column 28: fmax (REAL) NULL 
+  Column 29: smax (REAL) NULL 
+  Column 30: volume (REAL) NULL 
+  Column 31: mass (REAL) NULL 
+  Column 32: charge (REAL) NULL 
+  Total rows: 4999
+
+Table: sqlite_sequence
+  Column 0: name () NULL 
+  Column 1: seq () NULL 
+  Total rows: 1
+
+Table: species
+  Column 0: Z (INTEGER) NULL 
+  Column 1: n (INTEGER) NULL 
+  Column 2: id (INTEGER) NULL 
+  Total rows: 9998
+
+Table: keys
+  Column 0: key (TEXT) NULL 
+  Column 1: id (INTEGER) NULL 
+  Total rows: 0
+
+Table: text_key_values
+  Column 0: key (TEXT) NULL 
+  Column 1: value (TEXT) NULL 
+  Column 2: id (INTEGER) NULL 
+  Total rows: 0
+
+Table: number_key_values
+  Column 0: key (TEXT) NULL 
+  Column 1: value (REAL) NULL 
+  Column 2: id (INTEGER) NULL 
+  Total rows: 0
+
+Table: information
+  Column 0: name (TEXT) NULL 
+  Column 1: value (TEXT) NULL 
+  Total rows: 2
