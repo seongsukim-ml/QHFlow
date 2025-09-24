@@ -1,8 +1,14 @@
-# High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction (QHFlow)
+# (QHFlow) High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction
+<p align="left">
+<a href="https://developer.nvidia.com/cuda-downloads"><img alt="CUDA versions" src="https://img.shields.io/badge/cuda-12.1-green"></a>
+<a href="https://www.python.org/downloads/release/python-390"><img alt="Python versions" src="https://img.shields.io/badge/python-3.9%2B-blue"></a>
+</p>
 
-By Seongsu Kim, Aug, 2025 [[arxiv]](https://arxiv.org/abs/2505.18817) [[PDF]](https://arxiv.org/pdf/2505.18817)
+By [Seongsu Kim](https://seongsukim-ml.github.io/), Aug, 2025 [[arxiv]](https://arxiv.org/abs/2505.18817) [[PDF]](https://arxiv.org/pdf/2505.18817)
 
-🌟 This repository contains an implementation of the QHFlow for DFT Hamiltonian prediction. This repository is still updating.
+
+
+🌟 **[NeurIPS '25 Spotlight]** This repository contains an implementation of the QHFlow for DFT Hamiltonian prediction. This repository is still updating.
 
 ## Packages and Requirements
 
