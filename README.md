@@ -222,6 +222,8 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 
 **Note:** Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine. -->
 
+---
+
 ## Citation
 ```
 @article{kim2025high,
