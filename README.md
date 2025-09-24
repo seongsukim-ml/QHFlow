@@ -53,6 +53,8 @@ The project follows this directory structure (will be updated soon):
 ...
 ```
 
+---
+
 ## Dataset
 MD17 is downloaded automatically, but the QH9 dataset requires manual download due to gdown instability.
 
@@ -84,6 +86,8 @@ Data is assembled automatically when the final chunk is processed.
 
 **Note:** We plan to provide pre-processed datasets for all datasets to facilitate easier setup and usage.
 
+---
+
 ## Saved Checkpoints
 
 We plan to provide pre-trained model checkpoints for all datasets. Currently, we can provide checkpoints upon request. The checkpoint files are organized as follows:
@@ -111,6 +115,8 @@ Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset a
 
 To use these checkpoints, specify the path in the `ckpt` parameter when running inference or prediction commands. `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
 
+---
+
 ## Usage
 
 ### Prerequisites
@@ -136,6 +142,8 @@ All commands should be run from the `QHFlow/src` directory.
 **Debugging Tips:**
 - Check logs in the `logs/` directory for detailed training information
 - Monitor validation metrics to ensure proper training progress
+
+---
 
 ### Train
 
@@ -205,14 +213,14 @@ python -m experiment.train_qh9 mode=predict dataset=QH9Stable dataset.split=rand
 ```
 
 **Output Location:**
-- Predictions are typically saved in the `outputs/` directory
-- Each run creates timestamped subdirectories for organization
+- Predictions are typically saved in the `outputs/` directory in default
+<!-- - Each run creates timestamped subdirectories for organization -->
 
-### Note about Metrics
+<!-- ### Note about Metrics (fixed)
 
 The validation metrics of physical properties (e.g., orbital energies, Hamiltonian MAE) on QH9 can be unstable since the metric code is designed for batch size 1. Test and inference metrics have no issue since the batch size is fixed to 1. Multi-batch metric implementation is possible, but we use batch size 1 to ensure the bug-free behavior we tested.
 
-**Note:** Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine.
+**Note:** Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine. -->
 
 ## Citation
 ```
