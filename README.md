@@ -2,13 +2,35 @@
 <p align="left">
 <a href="https://developer.nvidia.com/cuda-downloads"><img alt="CUDA versions" src="https://img.shields.io/badge/cuda-12.1-green"></a>
 <a href="https://www.python.org/downloads/release/python-390"><img alt="Python versions" src="https://img.shields.io/badge/python-3.9%2B-blue"></a>
+<a href="https://arxiv.org/abs/2505.18817"><img alt="Python versions" src="https://img.shields.io/badge/arXiv-2505.18817-b31b1b.svg"></a>
+<a href="https://arxiv.org/pdf/2505.18817"><img alt="Python versions" src="https://img.shields.io/badge/arxiv-pdf-orange"></a>
 </p>
 
-By [Seongsu Kim](https://seongsukim-ml.github.io/), Aug, 2025 [[arxiv]](https://arxiv.org/abs/2505.18817) [[PDF]](https://arxiv.org/pdf/2505.18817)
+[Seongsu Kim](https://seongsukim-ml.github.io/), [Nayoung Kim](https://nayoung10.github.io/), [Dongwoo Kim](https://dongwookim-ml.github.io/), and [Sungsoo Ahn](https://sites.google.com/view/sungsooahn0215) @ KAIST [SPML Lab](https://sites.google.com/view/sungsooahn0215) (Aug, 2025)
 
 
 
-🌟 **[NeurIPS '25 Spotlight]** This repository contains an implementation of the QHFlow for DFT Hamiltonian prediction. This repository is still updating.
+🌟 **[NeurIPS '25 Spotlight]** This repository contains an implementation of the *QHFlow* for the DFT Hamiltonian prediction. This repository is still updating.
+
+---
+## Table of Contents
+- [(QHFlow) High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction](#qhflow-high-order-equivariant-flow-matching-for-density-functional-theory-hamiltonian-prediction)
+  - [Table of Contents](#table-of-contents)
+  - [Packages and Requirements](#packages-and-requirements)
+  - [Directory and Files](#directory-and-files)
+  - [Project setup](#project-setup)
+    - [Dataset](#dataset)
+    - [Checkpoints](#checkpoints)
+    - [Usage](#usage)
+    - [Tips](#tips)
+  - [Training and Inference](#training-and-inference)
+    - [Training from scratch](#training-from-scratch)
+    - [Finetuning](#finetuning)
+    - [Inference](#inference)
+    - [Prediction (Saving the outputs)](#prediction-saving-the-outputs)
+    - [📚 Citation](#-citation)
+    - [🖇️ Acknowledgements](#️-acknowledgements)
+---
 
 ## Packages and Requirements
 
@@ -54,8 +76,9 @@ The project follows this directory structure (will be updated soon):
 ```
 
 ---
+## Project setup
 
-## Dataset
+### Dataset
 MD17 is downloaded automatically, but the QH9 dataset requires manual download due to gdown instability.
 
 To download QH9, use the commands below:
@@ -82,13 +105,12 @@ where NAME is the dataset name (`QH9Stable` / `QH9Dynamic`). Use the following S
 
 Data is assembled automatically when the final chunk is processed.
 
-**Note**: The legacy `qh9_datasets_split.py` module will be deprecated. Use `qh9_datasets_shard.py` for all new dataset processing operations.
+**Note**
+- The legacy `qh9_datasets_split.py` module will be deprecated. Use `qh9_datasets_shard.py` for all new dataset processing operations.
+- We plan to provide pre-processed datasets for all datasets to facilitate easier setup and usage.
 
-**Note:** We plan to provide pre-processed datasets for all datasets to facilitate easier setup and usage.
 
----
-
-## Saved Checkpoints
+### Checkpoints
 
 We plan to provide pre-trained model checkpoints for all datasets. Currently, we can provide checkpoints upon request. The checkpoint files are organized as follows:
 
@@ -115,14 +137,13 @@ Where `${DATASET}` and `${SPLIT}` should be replaced with the specific dataset a
 
 To use these checkpoints, specify the path in the `ckpt` parameter when running inference or prediction commands. `${ROOT}` is the path of this repository or the parent path of the checkpoints directory.
 
----
 
-## Usage
+### Usage
 
-### Prerequisites
+**Prerequisites**
 All commands should be run from the `QHFlow/src` directory.
 
-### Available Datasets:
+**Available Datasets**
 - **MD17 DATASET**: `ethanol`, `malondialdehyde`, `uracil`, `water`
 - **QH9 DATASET**: `QH9Stable`, `QH9Dynamic`
   - **QH9Stable SPLIT (dataset.split)**: `random`, `size_ood`
@@ -144,8 +165,9 @@ All commands should be run from the `QHFlow/src` directory.
 - Monitor validation metrics to ensure proper training progress
 
 ---
+## Training and Inference
 
-### Train
+### Training from scratch
 
 ```bash
 python -m experiment.train_md17 dataset=${DATASET}
@@ -162,34 +184,56 @@ python -m experiment.train_md17 dataset=water
 python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random
 ```
 
-### Finetune
+### Finetuning
 Finetuning requires a pretrained model as a starting point, which is specified using the 'original_ckpt' parameter in the command.
 
 ```bash
-python -m experiment.train_qh9-finetune dataset=${DATASET} dataset.split=${SPLIT} +original_ckpt=${PRETRAINED_CKPT}
+python -m experiment.train_qh9-finetune \
+  dataset=${DATASET} \
+  dataset.split=${SPLIT} \
+  +original_ckpt=${PRETRAINED_CKPT}
 ```
 
 **Example:**
 ```bash
-python -m experiment.train_qh9-finetune dataset=QH9Stable dataset.split=random +original_ckpt=../ckpts/QH9Stable/random/checkpoints/weights.ckpt
+python -m experiment.train_qh9-finetune \
+  dataset=QH9Stable \
+  dataset.split=random \
+  +original_ckpt=../ckpts/QH9Stable/random/checkpoints/weights.ckpt
 ```
 
-### Inference (SCF acceleration measure)
+### Inference
+SCF acceleration measurement
 ```bash
-python -m experiment.train_md17 mode=inference dataset=${DATASET} ckpt=${CKPT}
-python -m experiment.train_qh9 mode=inference dataset=${DATASET} dataset.split=${SPLIT} ckpt=${CKPT}
+python -m experiment.train_md17 \
+  mode=inference \
+  dataset=${DATASET} \
+  ckpt=${CKPT}
+
+python -m experiment.train_qh9 \ 
+  mode=inference \
+  dataset=${DATASET} \
+  dataset.split=${SPLIT} \
+  ckpt=${CKPT}
 ```
 
 **Examples:**
 ```bash
 # MD17 inference
-python -m experiment.train_md17 mode=inference dataset=water ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+python -m experiment.train_md17 \
+  mode=inference \
+  dataset=water \
+  ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
 
 # QH9 inference
-python -m experiment.train_qh9 mode=inference dataset=QH9Stable dataset.split=random ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+python -m experiment.train_qh9 \
+  mode=inference \
+  dataset=QH9Stable \
+  dataset.split=random \
+  ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
 ```
 
-### Prediction (Saving the Output)
+### Prediction (Saving the outputs)
 
 This mode is used to predict test files and save individual Hamiltonian matrices for each sample. The predictions are saved to disk for further analysis.
 
@@ -199,17 +243,32 @@ This mode is used to predict test files and save individual Hamiltonian matrices
 - Files are organized by dataset and model configuration
 
 ```bash
-python -m experiment.train_md17 mode=predict dataset=${DATASET} ckpt=${CKPT}
-python -m experiment.train_qh9 mode=predict dataset=${DATASET} dataset.split=${SPLIT} ckpt=${CKPT}
+python -m experiment.train_md17 \
+  mode=predict \
+  dataset=${DATASET} \
+  ckpt=${CKPT}
+
+python -m experiment.train_qh9 \
+  mode=predict \
+  dataset=${DATASET} \
+  dataset.split=${SPLIT} \
+  ckpt=${CKPT}
 ```
 
 **Examples:**
 ```bash
 # MD17 prediction
-python -m experiment.train_md17 mode=predict dataset=water ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
+python -m experiment.train_md17 \
+  mode=predict \
+  dataset=water \
+  ckpt=${ROOT}/ckpts/md17/water/checkpoints/weights.ckpt
 
 # QH9 prediction
-python -m experiment.train_qh9 mode=predict dataset=QH9Stable dataset.split=random ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
+python -m experiment.train_qh9 \
+  mode=predict \
+  dataset=QH9Stable \
+  dataset.split=random \
+  ckpt=${ROOT}/ckpts/QH9Stable/random/checkpoints/weights.ckpt
 ```
 
 **Output Location:**
@@ -224,7 +283,7 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 
 ---
 
-## Citation
+### 📚 Citation
 ```
 @article{kim2025high,
   title={High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction},
@@ -234,9 +293,8 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 }
 ```
 
-## Acknowledgements
+### 🖇️ Acknowledgements
 This project is based on the repo [AIRS](https://github.com/divelab/AIRS.git) (QHNet).
 
 **MD17 Dataset**: [Revised MD17 dataset (rMD17)](https://figshare.com/articles/dataset/Revised_MD17_dataset_rMD17_/12672038)
-
 **QH9 Dataset**: [QHBench/QH9](https://github.com/divelab/AIRS/tree/main/OpenDFT/QHBench/QH9)
