@@ -14,22 +14,21 @@
 
 ---
 ## Table of Contents
-- [(QHFlow) High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction](#qhflow-high-order-equivariant-flow-matching-for-density-functional-theory-hamiltonian-prediction)
-  - [Table of Contents](#table-of-contents)
-  - [Packages and Requirements](#packages-and-requirements)
-  - [Directory and Files](#directory-and-files)
-  - [Project setup](#project-setup)
-    - [Dataset](#dataset)
-    - [Checkpoints](#checkpoints)
-    - [Usage](#usage)
-    - [Tips](#tips)
-  - [Training and Inference](#training-and-inference)
-    - [Training from scratch](#training-from-scratch)
-    - [Finetuning](#finetuning)
-    - [Inference](#inference)
-    - [Prediction (Saving the outputs)](#prediction-saving-the-outputs)
-    - [📚 Citation](#-citation)
-    - [🖇️ Acknowledgements](#️-acknowledgements)
+- [Table of Contents](#table-of-contents)
+- [Packages and Requirements](#packages-and-requirements)
+- [Directory and Files](#directory-and-files)
+- [Project setup](#project-setup)
+  - [Dataset](#dataset)
+  - [Checkpoints](#checkpoints)
+  - [Usage](#usage)
+  - [Tips](#tips)
+- [Training and Inference](#training-and-inference)
+  - [Training from scratch](#training-from-scratch)
+  - [Finetuning](#finetuning)
+  - [Inference](#inference)
+  - [Prediction (Saving the outputs)](#prediction-saving-the-outputs)
+  - [📚 Citation](#-citation)
+  - [🖇️ Acknowledgements](#️-acknowledgements)
 ---
 
 ## Packages and Requirements
