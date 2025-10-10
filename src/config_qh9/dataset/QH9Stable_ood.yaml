@@ -23,3 +23,4 @@ lr_end: 1e-7
 
 train_batch_interval: 100
 validation_batch_interval: 1000
+use_shard: true

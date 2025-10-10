@@ -42,7 +42,6 @@ class QH9Stable_shard(LMDBShard_maker_db):
         processd_dir_name="processed",
         shard_dir_name="lmdbs",
         split="random",
-        cal_orbital_and_energies=False,
         *args,
         **kwargs,
     ):
@@ -65,7 +64,6 @@ class QH9Stable_shard(LMDBShard_maker_db):
             self.split_path = os.path.join(self.save_path, "processed_QH9Stable_size_ood.json")
 
         # if cal_orbital_and_energies is True, data will contain orbital energies and coefficients
-        self.cal_orbital_and_energies = cal_orbital_and_energies
 
     def _make_split_info(self):
         if os.path.exists(self.split_path):
@@ -159,7 +157,9 @@ class QH9Stable_shard(LMDBShard_maker_db):
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
         packed_init_ham, _ = self.pack_upper_triangle(init_ham)
         packed_dm0, _ = self.pack_upper_triangle(dm0)
-        packed_orbital_coefficients, _ = self.pack_upper_triangle(orbital_coefficients)
+        
+        # orbital_coefficients is not symmetric, so we do not pack it
+        # packed_orbital_coefficients, _ = self.pack_upper_triangle(orbital_coefficients)
 
         ori_data_dict = {
             "id": data[0],
@@ -173,8 +173,11 @@ class QH9Stable_shard(LMDBShard_maker_db):
             "packed_overlap": packed_ovlp.tobytes(),
             "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
             "orbital_energies": orbital_energies.tobytes(), # unit: Eh
-            "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
-            "packed_dm0": packed_dm0.tobytes(),
+            # "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
+            "orbital_coefficients": orbital_coefficients.tobytes(),
+            "dm0": dm0.tobytes(),
+            "pos_unit": "Angstrom",
+            # "packed_dm0": packed_dm0.tobytes(),
         }
         data_dict = pickle.dumps(ori_data_dict)
         return key, data_dict
@@ -190,10 +193,11 @@ class QH9Stable(InMemoryDataset):
         pre_transform=None,
         pre_filter=None,
         prefix="",
-        shard_num=30,
+        shard_num=60,
         shard_idx=-1,
         max_workers_preprocess=8,
         use_parallel_preprocess=False,
+        return_orbital_and_energies=False,
     ):
         
         self.folder = os.path.join(root, "QH9Stable" + prefix)
@@ -206,6 +210,8 @@ class QH9Stable(InMemoryDataset):
         self.shard_idx = shard_idx
         self.max_workers_preprocess = max_workers_preprocess
         self.use_parallel_preprocess = use_parallel_preprocess
+
+        self.return_orbital_and_energies = return_orbital_and_energies
 
         assert self.split in ["random", "size_ood"], f"Split {self.split} for QH9Stable is not supported"
         if self.split == "random":
@@ -395,12 +401,34 @@ class QH9Stable(InMemoryDataset):
             data_dict = txn.get(key)
             
             if data_dict is None:
-                print(self.get_key_list(idx))
-                raise KeyError(f"Index idx: {idx}, shard_data_idx: {self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
+                raise KeyError(f"Index idx {idx}, shard_data_idx {self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
                 
             data_dict = pickle.loads(data_dict)
-            data = self.get_mol(data_dict, orb_energy_and_coeff=True)
+            # data_dict, save = self._fix_data_dict(data_dict)
+            # if save:
+            #     txn.put(key, pickle.dumps(data_dict))
+            
+            data = self.get_mol(data_dict, orb_energy_and_coeff=self.return_orbital_and_energies)
         return data
+
+    def _fix_data_dict(self, data_dict):
+        # Fix the data dict if the orbital_coefficients is not in the data dict
+        save = False
+        if "orbital_coefficients" not in data_dict.keys():
+            save = True
+            h_dim = data_dict["h_dim"] # sum of orbital dimensions
+            packed_hamiltonian = np.frombuffer(data_dict["packed_hamiltonian"], np.float64)
+            packed_overlap = np.frombuffer(data_dict["packed_overlap"], np.float64)
+            hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_hamiltonian, h_dim)).to(torch.float64)
+            overlap_matrix = torch.from_numpy(self.unpack_upper_triangle(packed_overlap, h_dim)).to(torch.float64)
+
+            orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+                overlap_matrix.unsqueeze(0),
+                hamiltonian.unsqueeze(0),
+            )
+            data_dict["orbital_coefficients"] = orbital_coefficients.numpy().tobytes()
+        return data_dict, save
+    
     
     def get_key_list(self, idx):
         """Get the key list of the shard (for debugging)"""
@@ -510,17 +538,36 @@ class QH9Stable(InMemoryDataset):
             edge_index_full=edge_index_full,
             dft_energy=dft_energy.view(1, 1),
             dft_forces=dft_forces,
-            num_nodes=num_nodes.view(1, 1),
-            h_dim=torch.tensor(h_dim, dtype=torch.int64).view(1, 1),
+            num_nodes=num_nodes,
+            h_dim=torch.tensor(h_dim, dtype=torch.int64),
         )
         
-        if orb_energy_and_coeff:    
+        if orb_energy_and_coeff:    # orbital_coefficients was not symmetric, so saved data is corrupted
             # Optimize orbital data loading: direct tensor creation from buffer
             orbital_energies = np.frombuffer(data_dict["orbital_energies"], np.float64)
-            packed_orbital_coefficients = np.frombuffer(data_dict["packed_orbital_coefficients"], np.float64)
-            orbital_coefficients = self.unpack_upper_triangle(packed_orbital_coefficients, h_dim)
-            data.orbital_energies = torch.from_numpy(orbital_energies).to(torch.float64)
-            data.orbital_coefficients = torch.from_numpy(orbital_coefficients).to(torch.float64).unsqueeze(0)
+            data.orbital_energies = torch.from_numpy(orbital_energies.copy()).to(torch.float64)
+
+
+            if "orbital_coefficients" in data_dict.keys():
+                orbital_coefficients = np.frombuffer(data_dict["orbital_coefficients"], np.float64).reshape(h_dim, h_dim)
+            else:
+                orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+                    overlap_matrix.unsqueeze(0),
+                    hamiltonian.unsqueeze(0),
+                )
+                orbital_coefficients = orbital_coefficients.numpy().reshape(h_dim, h_dim)
+
+            data.orbital_coefficients = orbital_coefficients
+
+            # packed_orbital_coefficients = np.frombuffer(data_dict["packed_orbital_coefficients"], np.float64)
+            # orbital_coefficients = self.unpack_upper_triangle(packed_orbital_coefficients, h_dim)
+            # orbital_coefficients = torch.from_numpy(orbital_coefficients.copy()).to(torch.float64).unsqueeze(0)
+            # diagonal_orbital_coefficients, non_diagonal_orbital_coefficients, _, _, _ = _cut_matrix_3d(orbital_coefficients, atoms, self.orbital_mask, self.full_orbitals)
+            # data.diagonal_orbital_coefficients = diagonal_orbital_coefficients[:,0]
+            # data.non_diagonal_orbital_coefficients = non_diagonal_orbital_coefficients[:,0]
+
+            # data.orbital_coefficients = orbital_coefficients.numpy()
+            # data.np_hamiltonian = hamiltonian.numpy()
 
         return data
     
@@ -539,7 +586,6 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
         processd_dir_name="processed",
         shard_dir_name="lmdbs",
         split="random",
-        cal_orbital_and_energies=False,
         *args,
         **kwargs,
     ):
@@ -560,9 +606,6 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
             self.split_path = os.path.join(self.save_path, "processed_QH9Dynamic_geometry.json")
         elif self.split == "mol":
             self.split_path = os.path.join(self.save_path, "processed_QH9Dynamic_mol.json")
-
-        # if cal_orbital_and_energies is True, data will contain orbital energies and coefficients
-        self.cal_orbital_and_energies = cal_orbital_and_energies
 
     def _make_split_info(self):
         if os.path.exists(self.split_path):
@@ -714,8 +757,8 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
         packed_init_ham, _ = self.pack_upper_triangle(init_ham)
-        packed_dm0, _ = self.pack_upper_triangle(dm0)
-        packed_orbital_coefficients, _ = self.pack_upper_triangle(orbital_coefficients)
+        # packed_dm0, _ = self.pack_upper_triangle(dm0)
+        # packed_orbital_coefficients, _ = self.pack_upper_triangle(orbital_coefficients)
 
         # Here, atoms and pos are not converted to "numpy array", since we have to convert them (byte stream) to "numpy array" in the get method
         ori_data_dict = {
@@ -723,7 +766,7 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
             "geo_id": geo_id,
             "num_nodes": data[2],
             "atoms": data[3],
-            "pos": data[4],  # unit: angstrom
+            "pos": data[4],  # unit: Bohr (Error.. We have to convert it to Angstrom in the get method)
             "dft_energy": dft_energy, # unit: Eh
             "dft_forces": dft_forces.tobytes(), # unit: Eh/Bohr
             "h_dim": h_dim,
@@ -731,8 +774,11 @@ class QH9Dynamic_shard(LMDBShard_maker_db):
             "packed_overlap": packed_ovlp.tobytes(),
             "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
             "orbital_energies": orbital_energies.tobytes(), # unit: Eh
-            "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
-            "packed_dm0": packed_dm0.tobytes(),
+            # "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
+            "orbital_coefficients": orbital_coefficients.tobytes(),
+            # "packed_dm0": packed_dm0.tobytes(),
+            "dm0": dm0.tobytes(),
+            "pos_unit": "Bohr",
         }
         data_dict = pickle.dumps(ori_data_dict)
         return key, data_dict
@@ -755,10 +801,11 @@ class QH9Dynamic(InMemoryDataset):
         pre_transform=None,
         pre_filter=None,
         prefix="",
-        shard_num=30,
+        shard_num=60,
         shard_idx=-1,
         max_workers_preprocess=8,
         use_parallel_preprocess=False,
+        return_orbital_and_energies=False,
     ):
         self.version = version
         assert self.version in ["100k", "300k"], f"Version {self.version} for QH9Dynamic is not supported"
@@ -775,6 +822,8 @@ class QH9Dynamic(InMemoryDataset):
         self.shard_idx = shard_idx
         self.max_workers_preprocess = max_workers_preprocess
         self.use_parallel_preprocess = use_parallel_preprocess
+
+        self.return_orbital_and_energies = return_orbital_and_energies
 
         assert self.split in ["geometry", "mol"], f"Split {self.split} for QH9Dynamic is not supported"
         if self.split == "geometry":
@@ -974,8 +1023,30 @@ class QH9Dynamic(InMemoryDataset):
                 raise KeyError(f"Index idx{idx}, shard_data_idx{self.shard_data_idx_list[idx]} not found in database {self.shard_idx_list[idx]}")
                 
             data_dict = pickle.loads(data_dict)
-            data = self.get_mol(data_dict, orb_energy_and_coeff=True)
+            # data_dict, save = self._fix_data_dict(data_dict)
+            # if save:
+            #     txn.put(key, pickle.dumps(data_dict))
+            
+            data = self.get_mol(data_dict, orb_energy_and_coeff=self.return_orbital_and_energies)
         return data
+
+    def _fix_data_dict(self, data_dict):
+        # Fix the data dict if the orbital_coefficients is not in the data dict
+        save = False
+        if "orbital_coefficients" not in data_dict.keys():
+            save = True
+            h_dim = data_dict["h_dim"] # sum of orbital dimensions
+            packed_hamiltonian = np.frombuffer(data_dict["packed_hamiltonian"], np.float64)
+            packed_overlap = np.frombuffer(data_dict["packed_overlap"], np.float64)
+            hamiltonian = torch.from_numpy(self.unpack_upper_triangle(packed_hamiltonian, h_dim)).to(torch.float64)
+            overlap_matrix = torch.from_numpy(self.unpack_upper_triangle(packed_overlap, h_dim)).to(torch.float64)
+
+            orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+                overlap_matrix,
+                hamiltonian,
+            )
+            data_dict["orbital_coefficients"] = orbital_coefficients.tobytes()
+        return data_dict, save
     
     def get_key_list(self, idx):
         """Get the key list of the shard (for debugging)"""
@@ -1019,6 +1090,7 @@ class QH9Dynamic(InMemoryDataset):
         num_nodes = torch.tensor(data_dict["num_nodes"], dtype=torch.int64)
         atoms = torch.tensor(np.frombuffer(data_dict["atoms"], np.int32), dtype=torch.int64)
         pos = torch.tensor(np.frombuffer(data_dict["pos"], np.float64).reshape(-1, 3), dtype=torch.float64)
+        pos = pos * BOHR2ANG
         dft_energy = torch.tensor(data_dict["dft_energy"], dtype=torch.float64)
         dft_forces = torch.tensor(np.frombuffer(data_dict["dft_forces"], np.float64).reshape(-1, 3), dtype=torch.float64)
         h_dim = data_dict["h_dim"] # sum of orbital dimensions
@@ -1085,17 +1157,32 @@ class QH9Dynamic(InMemoryDataset):
             edge_index_full=edge_index_full,
             dft_energy=dft_energy.view(1, 1),
             dft_forces=dft_forces,
-            num_nodes=num_nodes.view(1, 1),
-            h_dim=torch.tensor(h_dim, dtype=torch.int64).view(1, 1),
+            num_nodes=num_nodes,
+            h_dim=torch.tensor(h_dim, dtype=torch.int64),
         )
         
-        if orb_energy_and_coeff:    
+        if orb_energy_and_coeff:    # orbital_coefficients was not symmetric, so saved data is corrupted
             # Optimize orbital data loading: direct tensor creation from buffer
             orbital_energies = np.frombuffer(data_dict["orbital_energies"], np.float64)
-            packed_orbital_coefficients = np.frombuffer(data_dict["packed_orbital_coefficients"], np.float64)
-            orbital_coefficients = self.unpack_upper_triangle(packed_orbital_coefficients, h_dim)
-            data.orbital_energies = torch.from_numpy(orbital_energies).to(torch.float64)
-            data.orbital_coefficients = torch.from_numpy(orbital_coefficients).to(torch.float64).unsqueeze(0)
+            data.orbital_energies = torch.from_numpy(orbital_energies.copy()).to(torch.float64).squeeze()
+
+            if "orbital_coefficients" in data_dict.keys():
+                orbital_coefficients = np.frombuffer(data_dict["orbital_coefficients"], np.float64).reshape(h_dim, h_dim)
+            else:
+                orbital_energies, orbital_coefficients = cal_orbital_and_energies(
+                    overlap_matrix.unsqueeze(0),
+                    hamiltonian.unsqueeze(0),
+                )
+                orbital_coefficients = orbital_coefficients.numpy().reshape(h_dim, h_dim)
+                
+            data.orbital_coefficients = orbital_coefficients
+
+            # packed_orbital_coefficients = np.frombuffer(data_dict["packed_orbital_coefficients"], np.float64)
+            # orbital_coefficients = self.unpack_upper_triangle(packed_orbital_coefficients, h_dim)
+            # orbital_coefficients = torch.from_numpy(orbital_coefficients.copy()).to(torch.float64).unsqueeze(0)
+            # diagonal_orbital_coefficients, non_diagonal_orbital_coefficients, _, _, _ = _cut_matrix_3d(orbital_coefficients, atoms, self.orbital_mask, self.full_orbitals)
+            # data.diagonal_orbital_coefficients = diagonal_orbital_coefficients[:,0]
+            # data.non_diagonal_orbital_coefficients = non_diagonal_orbital_coefficients[:,0]
 
         return data
 
@@ -1176,20 +1263,95 @@ if __name__ == "__main__":
             shard_idx=args.shard_idx,
             prefix=args.prefix,
         )
+
+    # Compare with split dataset
     if args.pdb:
+        from dataset_module.qh9_datasets_split import QH9Stable as QH9Stable_split, QH9Dynamic as QH9Dynamic_split
+
         import pdb
-
         pdb.set_trace()
 
-        num_total = len(dataset)
-        chunk_size = (num_total + (args.num_chunks - 1)) // args.num_chunks
-        idx = []
-        for i in range(args.num_chunks):
-            start_idx = i * chunk_size
-            end_idx = min(start_idx + chunk_size, num_total)
-            idx.append((start_idx, end_idx))
+        from torch_geometric.loader import DataLoader
+        loader = DataLoader(dataset, batch_size=100, shuffle=False)
+        batch = next(iter(loader))
 
+        if args.name == "QH9Stable":
+            dataset_split = QH9Stable_split(
+                root=args.root,
+                split=args.split,
+                # num_chunks=args.shard_num,
+                # prefix=args.prefix,
+            )
+        elif args.name == "QH9Dynamic":
+            dataset_split = QH9Dynamic_split(
+                root=args.root,
+                version=args.version,
+                split=args.dynamic_split,
+                # num_chunks=args.shard_num,
+                # prefix=args.prefix,
+            )
+        
+        import random
+        random_idxs = random.sample(range(len(dataset_split)), 100)
+
+        check ={
+            "pos": [], # QH9Dynamic has some error due to the conversion from Bohr to Angstrom error
+            "atoms": [],
+            "diagonal_hamiltonian": [],
+            "non_diagonal_hamiltonian": [],
+            "diagonal_hamiltonian_mask": [],
+            "non_diagonal_hamiltonian_mask": [],
+            "diagonal_init_ham": [],
+            "non_diagonal_init_ham": [],
+            "diagonal_overlap": [],
+            "non_diagonal_overlap": [],
+            "diagonal_Q": [],
+            "non_diagonal_Q": [],
+            "edge_index_full": [],
+        }
+        EPS = 1e-7
+        start_time = time.time()
+        for idx in random_idxs:
+            data_shard = dataset[idx]
+            data = dataset_split[idx]
+            for key in check.keys():
+                if data_shard[key].shape != data[key].shape:
+                    check[key].append(False)
+                else:
+                    if key == "atoms" or key == "edge_index_full":
+                        err = abs(data_shard[key]-data[key]).sum()
+                        err = err / data[key].shape[0]
+                    else:
+                        err = abs(data_shard[key]-data[key]).mean()
+                    if err > EPS:
+                        check[key].append(False)
+                    else:
+                        check[key].append(True)
+
+        for key in check.keys():
+            print(key, np.array(check[key]).mean())
+        end_time = time.time()
+        print(f"Time taken calc: {end_time - start_time} seconds")
         pdb.set_trace()
+        
+        start_time = time.time()
+        for i in random_idxs:
+            data = dataset[i]
+        end_time = time.time()
+        print(f"Time taken (shard): {end_time - start_time} seconds")
+        # Shard (QH9Stable) : 8.85
+        # Shard (QH9Dynamic): 8.73
+
+        start_time = time.time()
+        for i in random_idxs:
+            data = dataset_split[i]
+        end_time = time.time()
+        print(f"Time taken (split): {end_time - start_time} seconds")
+        # Split (QH9Stable) : 12.07
+        # Split (QH9Dynamic): 12.63
+
+        # 27% acceleration for QH9Stable
+        # 28% acceleration for QH9Dynamic
 
     print(len(dataset))
     print(dataset[0])

@@ -12,24 +12,23 @@
 
 🌟 **[NeurIPS '25 Spotlight]** This repository contains an implementation of the *QHFlow* for the DFT Hamiltonian prediction. This repository is still updating.
 
----
 ## Table of Contents
-- [Table of Contents](#table-of-contents)
-- [Packages and Requirements](#packages-and-requirements)
-- [Directory and Files](#directory-and-files)
-- [Project setup](#project-setup)
-  - [Dataset](#dataset)
-  - [Checkpoints](#checkpoints)
-  - [Usage](#usage)
-  - [Tips](#tips)
-- [Training and Inference](#training-and-inference)
-  - [Training from scratch](#training-from-scratch)
-  - [Finetuning](#finetuning)
-  - [Inference](#inference)
-  - [Prediction (Saving the outputs)](#prediction-saving-the-outputs)
-  - [📚 Citation](#-citation)
-  - [🖇️ Acknowledgements](#️-acknowledgements)
----
+- [(QHFlow) High-order Equivariant Flow Matching for Density Functional Theory Hamiltonian Prediction](#qhflow-high-order-equivariant-flow-matching-for-density-functional-theory-hamiltonian-prediction)
+  - [Table of Contents](#table-of-contents)
+  - [Packages and Requirements](#packages-and-requirements)
+  - [Directory and Files](#directory-and-files)
+  - [Project setup](#project-setup)
+    - [Dataset](#dataset)
+    - [Checkpoints](#checkpoints)
+    - [Usage](#usage)
+    - [Tips](#tips)
+  - [Training and Inference](#training-and-inference)
+    - [Training from scratch](#training-from-scratch)
+    - [Finetuning](#finetuning)
+    - [Inference](#inference)
+    - [Prediction (Saving the outputs)](#prediction-saving-the-outputs)
+    - [📚 Citation](#-citation)
+    - [🖇️ Acknowledgements](#️-acknowledgements)
 
 ## Packages and Requirements
 
@@ -74,7 +73,6 @@ The project follows this directory structure (will be updated soon):
 ...
 ```
 
----
 ## Project setup
 
 ### Dataset
@@ -93,7 +91,7 @@ gdown https://drive.google.com/uc?id=1sbf-sFhh3ZmhXgTcN2ke_la39MaG0Yho -O ./data
 Processing from raw files to torch datasets runs automatically on the first training run.
 Or, you can process manually with the sharding process:
 ```bash
-python -m dataset_module.qh9_datasets_split \
+python -m dataset_module.qh9_datasets_shard \
     --name=${NAME}  \
     --num_chunks=30 --chunk_idx=${DB_IDX} \
     --split=${SPLIT}
@@ -152,7 +150,7 @@ All commands should be run from the `QHFlow/src` directory.
 
 **Training Tips:**
 - You can enable Weights & Biases logging with `wandb.mode=online`
-- Training automatically resumes when interrupted
+- Training automatically resumes when interrupted and restarted.
 - Use `CUDA_VISIBLE_DEVICES` to specify GPU devices: `CUDA_VISIBLE_DEVICES=0,1 python -m experiment.train_md17 dataset=water`
 
 **Performance Tips:**
@@ -184,7 +182,7 @@ python -m experiment.train_qh9 dataset=QH9Stable dataset.split=random
 ```
 
 ### Finetuning
-Finetuning requires a pretrained model as a starting point, which is specified using the 'original_ckpt' parameter in the command.
+(Note: currently not working. Will be fixed) Finetuning requires a pretrained model as a starting point, which is specified using the 'original_ckpt' parameter in the command.
 
 ```bash
 python -m experiment.train_qh9-finetune \
@@ -280,7 +278,6 @@ The validation metrics of physical properties (e.g., orbital energies, Hamiltoni
 
 **Note:** Although the physical metric implementation is unstable on multi-batch, the loss is not affected by these metrics, so training and tracking are perfectly fine. -->
 
----
 
 ### 📚 Citation
 ```
