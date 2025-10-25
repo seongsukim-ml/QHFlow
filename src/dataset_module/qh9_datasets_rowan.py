@@ -551,7 +551,7 @@ class QM9Rowan(InMemoryDataset):
     def unpack_upper_triangle(packed: np.ndarray, h_dim: int):
         return unpack_upper_triangle(packed, h_dim)
     
-    def matrix_transform(self, hamiltonian, atoms, convention="pyscf_def2svp_to_e3nn"):
+    def matrix_transform(self, hamiltonian, atoms, convention="pyscf_def2-tzvppd_to_e3nn"):
         return _matrix_transform_single(hamiltonian, atoms, self.convention_dict[convention])
       
     def get_mol(self, data_dict, orb_energy_and_coeff=False):

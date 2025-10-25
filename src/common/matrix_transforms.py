@@ -92,6 +92,64 @@ convention_dict = {
         },
         max_block_size= 40, # 6s + 4p + 3d + 1f = 6 + 12 + 15 + 7 = 40
     ),
+    "pyscf_def2-tzvppd_to_e3nn": Namespace(
+        atom_to_orbitals_map={
+            1:  'ssspppd', # H (3s + 3p + 1d) = 3 + 9 + 5 = 17
+            6:  'sssssspppdddf', # C  (6s + 3p + 3d + 1f) = 6 + 9 + 15 + 7 = 37
+            7:  'sssssspppdddf', # N  (6s + 3p + 3d + 1f) = 6 + 9 + 15 + 7 = 37
+            8:  'ssssssppppdddf', # O (6s + 4p + 3d + 1f) = 6 + 12 + 15 + 7 = 40
+            9:  'ssssssppppdddf', # F (6s + 4p + 3d + 1f) = 6 + 12 + 15 + 7 = 40
+        },
+        orbital_idx_map={
+            's': [0],
+            'p': [1, 2, 0],
+            'd': [0, 1, 2, 3, 4],
+            'f': [0, 1, 2, 3, 4, 5, 6]
+        },
+        orbital_sign_map={
+            's': [1],
+            'p': [1, 1, 1],
+            'd': [1, 1, 1, 1, 1],
+            'f': [1, 1, 1, 1, 1, 1, 1],
+        },
+        orbital_order_map={
+            1: list(range(7)),
+            6: list(range(13)),
+            7: list(range(13)),
+            8: list(range(14)),
+            9: list(range(14)),
+        },
+        max_block_size= 40, # 6s + 4p + 3d + 1f = 6 + 12 + 15 + 7 = 40
+    ),
+    "e3nn_def2-tzvppd_to_pyscf": Namespace(
+        atom_to_orbitals_map={
+            1:  'ssspppd', # H (3s + 3p + 1d) = 3 + 9 + 5 = 17
+            6:  'sssssspppdddf', # C  (6s + 3p + 3d + 1f) = 6 + 9 + 15 + 7 = 37
+            7:  'sssssspppdddf', # N  (6s + 3p + 3d + 1f) = 6 + 9 + 15 + 7 = 37
+            8:  'ssssssppppdddf', # O (6s + 4p + 3d + 1f) = 6 + 12 + 15 + 7 = 40
+            9:  'ssssssppppdddf', # F (6s + 4p + 3d + 1f) = 6 + 12 + 15 + 7 = 40
+        },
+        orbital_idx_map={
+            's': [0],
+            'p': [2, 0, 1],
+            'd': [0, 1, 2, 3, 4],
+            'f': [0, 1, 2, 3, 4, 5, 6]
+        },
+        orbital_sign_map={
+            's': [1],
+            'p': [1, 1, 1],
+            'd': [1, 1, 1, 1, 1],
+            'f': [1, 1, 1, 1, 1, 1, 1],
+        },
+        orbital_order_map={
+            1: list(range(7)),
+            6: list(range(13)),
+            7: list(range(13)),
+            8: list(range(14)),
+            9: list(range(14)),
+        },
+        max_block_size= 40, # 6s + 4p + 3d + 1f = 6 + 12 + 15 + 7 = 40
+    ),
     'pyscf_def2-tzvp_to_e3nn': Namespace(
         atom_to_orbitals_map={
             1:  'sssp', # H
