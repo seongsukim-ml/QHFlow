@@ -2,7 +2,9 @@ import os, json, lmdb, numpy as np
 # import zlib, msgpac
 import apsw
 from apsw import Connection
-from tqdm.rich import tqdm
+# from tqdm.rich import tqdm
+from tqdm import tqdm
+
 from typing import Union
 import concurrent.futures
 from common.matrix_transforms import pack_upper_triangle, unpack_upper_triangle

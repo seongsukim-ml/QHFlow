@@ -74,3 +74,14 @@ python -m dataset_module.qh9_datasets_shard --shard_num=60 --shard_idx=50-54 --n
 python -m dataset_module.qh9_datasets_shard --shard_num=60 --shard_idx=55-59 --name=QH9Dynamic --prefix="_shard"
 
 
+# QM9Rowan in storage server
+conda activate qhflow && cd ~/hw_data1/QHFlow/src
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=0-5 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=5-10 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=10-15 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=15-20 --name=QM9Rowan
+
+
+
+
+python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=-1 --name=QM9Rowan

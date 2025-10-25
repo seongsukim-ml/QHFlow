@@ -112,7 +112,7 @@ def calc_overlap_and_init_hamiltonian(
     Returns:
         tuple: (overlap_matrix, initial_hamiltonian_matrix)
     """
-    mol = init_pyscf_mol(atoms, pos, unit=unit)
+    mol = init_pyscf_mol(atoms, pos, unit=unit, basis=basis)
 
     overlap_matrix = mol.intor("int1e_ovlp")
     mf = dft.RKS(mol)

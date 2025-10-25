@@ -47,6 +47,19 @@ pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -
 pip install -r requirements.txt
 ```
 
+<!-- ```bash
+# Example CUDA 12.1 with torch 2.4.1
+conda create -n qhflow python=3.12 psi4 -y
+conda activate qhflow
+
+pip install pyscf==2.10.0
+pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index https://download.pytorch.org/whl/cpu
+pip install torch_geometric==2.3.0
+pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0.html
+
+pip install -r requirements.txt
+``` -->
+
 ## Directory and Files
 The project follows this directory structure (will be updated soon):
 ```
