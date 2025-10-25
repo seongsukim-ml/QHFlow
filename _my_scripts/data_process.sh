@@ -81,6 +81,24 @@ LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_
 LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=10-15 --name=QM9Rowan
 LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=15-20 --name=QM9Rowan
 
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=20-25 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=25-30 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=30-35 --name=QM9Rowan 
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=35-40 --name=QM9Rowan
+
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=40-45 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=45-50 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=50-55 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=55-60 --name=QM9Rowan
+
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=60-65 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=65-70 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=70-75 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=75-80 --name=QM9Rowan
+
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=80-85 --name=QM9Rowan
+LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH python -m dataset_module.qh9_datasets_rowan --shard_num=90 --shard_idx=85-90 --name=QM9Rowan
+
 
 
 

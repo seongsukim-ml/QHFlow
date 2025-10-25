@@ -191,15 +191,15 @@ class QM9Rowan_shard(LMDBShard_maker_db):
         atoms = pickle.loads(data[4])
         pos = pickle.loads(data[6])
 
-        # ovlp, init_ham, mf = calc_overlap_and_init_hamiltonian(
-        #     atoms,
-        #     pos.reshape(-1, 3),
-        #     unit="ang",
-        #     out_mf=True,
-        #     basis="def2-tzvppd",
-        #     # xc="ωB97M-D3BJ",
-        #     xc="wb97m-v",
-        # )
+        ovlp, init_ham, mf = calc_overlap_and_init_hamiltonian(
+            atoms,
+            pos.reshape(-1, 3),
+            unit="ang",
+            out_mf=True,
+            basis="def2-tzvppd",
+            # xc="ωB97M-D3BJ",
+            xc="wb97m-v",
+        )
         # hamiltonian = np.frombuffer(data[13], np.float64) # flattened hamiltonian matrix
         hamiltonian = pickle.loads(data[13])
         hamiltonian = _matrix_transform_single(
@@ -208,7 +208,7 @@ class QM9Rowan_shard(LMDBShard_maker_db):
             self.convention_dict["psi4_def2-tzvppd_to_pyscf"]
             ).numpy()
 
-        ovlp = pickle.loads(data[14])
+        # overlap = pickle.loads(data[14]) is the same as ovlp
         
         # Debugging
         # transformed_overlap = _matrix_transform_single(torch.from_numpy(overlap), atoms, self.convention_dict["psi4_def2-tzvppd_to_pyscf"])
@@ -226,19 +226,16 @@ class QM9Rowan_shard(LMDBShard_maker_db):
         
         orbital_coefficients = orbital_coefficients.cpu().numpy()
         orbital_energies = orbital_energies.cpu().numpy()
-        # dft_energy = mf.energy_tot(dm0)
+        dft_energy = mf.energy_tot(dm0)
 
-        # # Calculate DFT forces
-        # grad_frame = mf.nuc_grad_method()
-        # mo_occ = mf.get_occ(orbital_energies.squeeze(), orbital_coefficients.squeeze())
-        # dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze(), mo_coeff=orbital_coefficients.squeeze(), mo_occ=mo_occ)
-
-        dft_energy = pickle.loads(data[8])
-        dft_forces = pickle.loads(data[9])
+        # Calculate DFT forces
+        grad_frame = mf.nuc_grad_method()
+        mo_occ = mf.get_occ(orbital_energies.squeeze(), orbital_coefficients.squeeze())
+        dft_forces = -grad_frame.kernel(mo_energy=orbital_energies.squeeze(), mo_coeff=orbital_coefficients.squeeze(), mo_occ=mo_occ)
         
         packed_hamiltonian, h_dim = self.pack_upper_triangle(hamiltonian) # h_dim is the dimension of the hamiltonian matrix
         packed_ovlp, _ = self.pack_upper_triangle(ovlp)
-        # packed_init_ham, _ = self.pack_upper_triangle(init_ham)
+        packed_init_ham, _ = self.pack_upper_triangle(init_ham)
         packed_dm0, _ = self.pack_upper_triangle(dm0)
         
         # orbital_coefficients is not symmetric, so we do not pack it
@@ -254,7 +251,7 @@ class QM9Rowan_shard(LMDBShard_maker_db):
             "h_dim": h_dim,
             "packed_hamiltonian": packed_hamiltonian.tobytes(), # unit: Eh
             "packed_overlap": packed_ovlp.tobytes(),
-            # "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
+            "packed_initial_hamiltonian": packed_init_ham.tobytes(), # unit: Eh
             "orbital_energies": orbital_energies.tobytes(), # unit: Eh
             # "packed_orbital_coefficients": packed_orbital_coefficients.tobytes(),
             "orbital_coefficients": orbital_coefficients.tobytes(),
